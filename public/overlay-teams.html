@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Teams Overlay</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      background: transparent !important;
+      font-family: 'Segoe UI', sans-serif;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    #teams {
+      display: flex;
+      justify-content: center;
+      gap: 14px;
+      padding: 14px;
+    }
+
+    .team-pill {
+      background: rgba(10, 10, 20, 0.82);
+      border-radius: 999px;
+      padding: 10px 26px;
+      font-size: 1.15rem;
+      font-weight: bold;
+      text-align: center;
+      min-width: 110px;
+      border: 2.5px solid rgba(255,255,255,0.12);
+      backdrop-filter: blur(8px);
+      color: #fff;
+    }
+    .team-pill span { display: block; font-size: 0.68rem; opacity: 0.65; margin-bottom: 3px; letter-spacing: 1px; text-transform: uppercase; }
+    .team-A { border-color: #ff1744; }
+    .team-A strong { color: #ff5252; }
+    .team-B { border-color: #2979ff; }
+    .team-B strong { color: #448aff; }
+    .team-C { border-color: #00e676; }
+    .team-C strong { color: #69f0ae; }
+
+    .toast-area {
+      position: fixed;
+      bottom: 16px;
+      left: 16px;
+      display: flex;
+      flex-direction: column-reverse;
+      gap: 8px;
+    }
+    .toast {
+      background: rgba(10,10,20,0.85);
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 0.85rem;
+      color: #fff;
+      max-width: 280px;
+      animation: fadeIn 0.3s ease;
+      border-left: 3px solid #ea00ff;
+    }
+    .toast.gift { border-color: #ffd740; }
+    .toast.join { border-color: #00e676; }
+    @keyframes fadeIn {
+      from { opacity:0; transform:translateY(8px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+  </style>
+</head>
+<body>
+
+<div id="teams">
+  <div class="team-pill team-A"><span>Team A</span><strong id="score-A">0</strong> XP</div>
+  <div class="team-pill team-B"><span>Team B</span><strong id="score-B">0</strong> XP</div>
+  <div class="team-pill team-C"><span>Team C</span><strong id="score-C">0</strong> XP</div>
+</div>
+
+<div class="toast-area" id="toasts"></div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  const socket = io();
+
+  socket.on('game:state', ({ teamScores }) => {
+    document.getElementById('score-A').textContent = teamScores.A;
+    document.getElementById('score-B').textContent = teamScores.B;
+    document.getElementById('score-C').textContent = teamScores.C;
+  });
+
+  function toast(text, type, ms = 3500) {
+    const area = document.getElementById('toasts');
+    const d = document.createElement('div');
+    d.className = `toast ${type}`;
+    d.textContent = text;
+    area.prepend(d);
+    if (area.children.length > 4) area.removeChild(area.lastChild);
+    setTimeout(() => d.remove(), ms);
+  }
+
+  socket.on('player:team_assigned', ({ nickname, team }) => toast(`🏳️ ${nickname} → Team ${team}`, 'team'));
+  socket.on('game:gift', ({ nickname, giftName }) => toast(`🎁 ${nickname} sent ${giftName}!`, 'gift'));
+  socket.on('game:join', ({ nickname }) => toast(`👤 ${nickname} joined`, 'join', 2000));
+</script>
+</body>
+</html>

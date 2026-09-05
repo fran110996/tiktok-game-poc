@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TikTok Game POC — Host Dashboard</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0d0d1a;
+      color: #f0f0f0;
+      font-family: 'Segoe UI', sans-serif;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 1.6rem;
+      color: #00e5ff;
+      margin-bottom: 24px;
+      letter-spacing: 2px;
+    }
+
+    /* STATUS BAR */
+    #status-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: #1a1a2e;
+      border-radius: 10px;
+      padding: 12px 18px;
+      margin-bottom: 20px;
+      font-size: 0.9rem;
+    }
+    #status-dot {
+      width: 12px; height: 12px;
+      border-radius: 50%;
+      background: #555;
+      flex-shrink: 0;
+    }
+    #status-dot.connected { background: #00e676; }
+    #status-dot.error { background: #ff1744; }
+
+    /* CONNECT SECTION */
+    #connect-section {
+      background: #1a1a2e;
+      border-radius: 10px;
+      padding: 18px;
+      margin-bottom: 20px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    #connect-section input {
+      flex: 1;
+      min-width: 180px;
+      padding: 10px 14px;
+      border: none;
+      border-radius: 8px;
+      background: #0d0d1a;
+      color: #f0f0f0;
+      font-size: 1rem;
+      outline: none;
+    }
+
+    /* CONTROLS */
+    #controls {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+
+    button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    button:hover { opacity: 0.85; }
+    button:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    .btn-connect  { background: #00e5ff; color: #0d0d1a; }
+    .btn-start    { background: #00e676; color: #0d0d1a; }
+    .btn-stop     { background: #ff1744; color: #fff; }
+    .btn-reset    { background: #ff9100; color: #0d0d1a; }
+    .btn-disconnect { background: #555; color: #fff; }
+
+    /* TEAMS */
+    #teams {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    .team-card {
+      flex: 1;
+      min-width: 120px;
+      background: #1a1a2e;
+      border-radius: 10px;
+      padding: 16px;
+      text-align: center;
+    }
+    .team-card h3 { font-size: 1.1rem; margin-bottom: 6px; }
+    .team-card .score { font-size: 2rem; font-weight: bold; }
+    .team-A h3 { color: #ff1744; }
+    .team-A .score { color: #ff1744; }
+    .team-B h3 { color: #2979ff; }
+    .team-B .score { color: #2979ff; }
+    .team-C h3 { color: #00e676; }
+    .team-C .score { color: #00e676; }
+
+    /* LEADERBOARD */
+    #leaderboard-section {
+      background: #1a1a2e;
+      border-radius: 10px;
+      padding: 18px;
+      margin-bottom: 20px;
+    }
+    #leaderboard-section h2 {
+      font-size: 1rem;
+      color: #00e5ff;
+      margin-bottom: 14px;
+      letter-spacing: 1px;
+    }
+    #leaderboard-list { list-style: none; }
+    #leaderboard-list li {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 4px;
+      border-bottom: 1px solid #2a2a3e;
+      font-size: 0.9rem;
+    }
+    #leaderboard-list li:last-child { border-bottom: none; }
+    .lb-rank { color: #888; width: 30px; }
+    .lb-name { flex: 1; }
+    .lb-team { width: 30px; text-align: center; font-weight: bold; }
+    .lb-xp { color: #00e5ff; font-weight: bold; }
+
+    /* LIVE FEED */
+    #feed-section {
+      background: #1a1a2e;
+      border-radius: 10px;
+      padding: 18px;
+    }
+    #feed-section h2 {
+      font-size: 1rem;
+      color: #00e5ff;
+      margin-bottom: 14px;
+      letter-spacing: 1px;
+    }
+    #feed {
+      max-height: 220px;
+      overflow-y: auto;
+      font-size: 0.85rem;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .feed-item {
+      padding: 6px 10px;
+      border-radius: 6px;
+      background: #0d0d1a;
+      word-break: break-word;
+    }
+    .feed-item.comment { border-left: 3px solid #00e5ff; }
+    .feed-item.gift    { border-left: 3px solid #ffd740; }
+    .feed-item.join    { border-left: 3px solid #00e676; }
+    .feed-item.team    { border-left: 3px solid #ea00ff; }
+
+    /* OVERLAYS SECTION */
+    #overlays-section {
+      background: #1a1a2e;
+      border-radius: 10px;
+      padding: 18px;
+      margin-bottom: 20px;
+    }
+    #overlays-section h2 {
+      font-size: 1rem;
+      color: #00e5ff;
+      margin-bottom: 14px;
+      letter-spacing: 1px;
+    }
+    .overlay-cards-grid {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .overlay-card {
+      flex: 1;
+      min-width: 220px;
+      background: #0d0d1a;
+      border-radius: 8px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 12px;
+      border: 1px solid #2a2a3e;
+    }
+    .overlay-info h3 {
+      font-size: 0.95rem;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+    .overlay-info p {
+      font-size: 0.8rem;
+      color: #888;
+    }
+    .overlay-actions {
+      display: flex;
+      gap: 8px;
+    }
+    .btn-overlay-open {
+      padding: 8px 14px;
+      background: #2a2a4e;
+      color: #00e5ff;
+      text-decoration: none;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: bold;
+      text-align: center;
+      transition: background 0.2s;
+    }
+    .btn-overlay-open:hover { background: #3a3a6e; }
+    .btn-overlay-copy {
+      padding: 8px 14px;
+      background: #00e5ff;
+      color: #0d0d1a;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: bold;
+      cursor: pointer;
+      flex: 1;
+      transition: opacity 0.2s;
+    }
+    .btn-overlay-copy:hover { opacity: 0.85; }
+
+    .overlay-link {
+      display: block;
+      text-align: center;
+      margin-top: 20px;
+      color: #888;
+      font-size: 0.8rem;
+    }
+    .overlay-link a { color: #00e5ff; }
+  </style>
+</head>
+<body>
+
+<h1>🎮 TikTok Game POC — Dashboard</h1>
+
+<!-- Status -->
+<div id="status-bar">
+  <div id="status-dot"></div>
+  <span id="status-text">Not connected</span>
+</div>
+
+<!-- Connect -->
+<div id="connect-section">
+  <input id="creator-input" type="text" placeholder="@tiktok_username (without @)" />
+  <input id="session-input" type="password" placeholder="TikTok sessionid cookie (required)" />
+  <button class="btn-connect" onclick="connectTikTok()">Connect TikTok</button>
+  <button class="btn-disconnect" onclick="disconnectTikTok()">Disconnect</button>
+</div>
+
+<!-- Controls -->
+<div id="controls">
+  <button class="btn-start" id="btn-start" onclick="startGame()" disabled>▶ Start Game</button>
+  <button class="btn-stop"  id="btn-stop"  onclick="stopGame()"  disabled>■ Stop Game</button>
+  <button class="btn-reset"               onclick="resetGame()">↺ Reset Scores</button>
+</div>
+
+<!-- Overlays Section -->
+<div id="overlays-section">
+  <h2>📺 OVERLAYS PARA OBS / TIKTOK LIVE STUDIO</h2>
+  <div class="overlay-cards-grid">
+    <div class="overlay-card">
+      <div class="overlay-info">
+        <h3>🛡️ Equipos & Notificaciones</h3>
+        <p>Barra superior con puntajes A/B/C y alertas en vivo</p>
+      </div>
+      <div class="overlay-actions">
+        <a href="/overlay/teams" target="_blank" class="btn-overlay-open">Abrir</a>
+        <button class="btn-overlay-copy" onclick="copyOverlayUrl('/overlay/teams', this)">📋 Copiar Link</button>
+      </div>
+    </div>
+
+    <div class="overlay-card">
+      <div class="overlay-info">
+        <h3>🏆 Leaderboard Top Players</h3>
+        <p>Ranking centrado en vivo con los mejores jugadores</p>
+      </div>
+      <div class="overlay-actions">
+        <a href="/overlay/leaderboard" target="_blank" class="btn-overlay-open">Abrir</a>
+        <button class="btn-overlay-copy" onclick="copyOverlayUrl('/overlay/leaderboard', this)">📋 Copiar Link</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Teams -->
+<div id="teams">
+  <div class="team-card team-A">
+    <h3>Team A</h3>
+    <div class="score" id="score-A">0</div>
+    <small>XP</small>
+  </div>
+  <div class="team-card team-B">
+    <h3>Team B</h3>
+    <div class="score" id="score-B">0</div>
+    <small>XP</small>
+  </div>
+  <div class="team-card team-C">
+    <h3>Team C</h3>
+    <div class="score" id="score-C">0</div>
+    <small>XP</small>
+  </div>
+</div>
+
+<!-- Leaderboard -->
+<div id="leaderboard-section">
+  <h2>🏆 TOP PLAYERS</h2>
+  <ul id="leaderboard-list"></ul>
+</div>
+
+<!-- Live Feed -->
+<div id="feed-section">
+  <h2>📡 LIVE FEED</h2>
+  <div id="feed"></div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  const socket = io();
+
+  function copyOverlayUrl(path, btn) {
+    const fullUrl = window.location.origin + path;
+    navigator.clipboard.writeText(fullUrl).then(() => {
+      const origText = btn.innerHTML;
+      btn.innerHTML = '✅ ¡Copiado!';
+      btn.style.background = '#00e676';
+      setTimeout(() => {
+        btn.innerHTML = origText;
+        btn.style.background = '#00e5ff';
+      }, 2000);
+    });
+  }
+
+  // ---- Status ----
+  function setStatus(text, type) {
+    document.getElementById('status-text').textContent = text;
+    const dot = document.getElementById('status-dot');
+    dot.className = type === 'connected' ? 'connected' : type === 'error' ? 'error' : '';
+  }
+
+  // ---- TikTok Connection ----
+  async function connectTikTok() {
+    const username = document.getElementById('creator-input').value.trim().replace('@','');
+    const sessionId = document.getElementById('session-input').value.trim();
+    if (!username) return alert('Enter a TikTok username');
+    if (!sessionId) return alert('Enter your TikTok sessionid cookie');
+    setStatus('Connecting...', '');
+    const r = await fetch('/api/connect', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({username, sessionId}) });
+    const data = await r.json();
+    if (!r.ok) { setStatus('Error: ' + data.error, 'error'); return; }
+  }
+
+  async function disconnectTikTok() {
+    await fetch('/api/disconnect', { method:'POST' });
+    setStatus('Disconnected', '');
+    document.getElementById('btn-start').disabled = true;
+  }
+
+  // ---- Game Controls ----
+  async function startGame() {
+    await fetch('/api/start', { method:'POST' });
+    document.getElementById('btn-start').disabled = true;
+    document.getElementById('btn-stop').disabled = false;
+    addFeed('✅ Game started!', 'join');
+  }
+
+  async function stopGame() {
+    await fetch('/api/stop', { method:'POST' });
+    document.getElementById('btn-start').disabled = false;
+    document.getElementById('btn-stop').disabled = true;
+    addFeed('⛔ Game stopped', 'join');
+  }
+
+  async function resetGame() {
+    await fetch('/api/reset', { method:'POST' });
+    addFeed('↺ Scores reset', 'join');
+  }
+
+  // ---- Live Feed ----
+  function addFeed(text, type) {
+    const feed = document.getElementById('feed');
+    const div = document.createElement('div');
+    div.className = `feed-item ${type}`;
+    div.textContent = text;
+    feed.prepend(div);
+    if (feed.children.length > 60) feed.removeChild(feed.lastChild);
+  }
+
+  // ---- Leaderboard ----
+  function renderLeaderboard(data) {
+    const list = document.getElementById('leaderboard-list');
+    const teamColors = { A:'#ff1744', B:'#2979ff', C:'#00e676' };
+    list.innerHTML = data.map((p, i) => `
+      <li>
+        <span class="lb-rank">${i+1}.</span>
+        <span class="lb-name">${p.nickname || p.username}</span>
+        <span class="lb-team" style="color:${teamColors[p.team]||'#888'}">${p.team||'—'}</span>
+        <span class="lb-xp">${p.total_xp} XP</span>
+      </li>
+    `).join('');
+  }
+
+  // ---- Socket Events ----
+  socket.on('tiktok:connected', ({ username }) => {
+    setStatus(`Connected to @${username}`, 'connected');
+    document.getElementById('btn-start').disabled = false;
+    addFeed(`🔗 Connected to @${username}`, 'join');
+  });
+
+  socket.on('tiktok:disconnected', () => {
+    setStatus('Disconnected', '');
+    addFeed('🔌 TikTok disconnected', 'join');
+  });
+
+  socket.on('tiktok:error', ({ message }) => {
+    setStatus('Error: ' + message, 'error');
+    addFeed('❌ Error: ' + message, 'join');
+  });
+
+  socket.on('game:state', ({ teamScores, leaderboard }) => {
+    document.getElementById('score-A').textContent = teamScores.A;
+    document.getElementById('score-B').textContent = teamScores.B;
+    document.getElementById('score-C').textContent = teamScores.C;
+    renderLeaderboard(leaderboard);
+  });
+
+  socket.on('game:comment', ({ nickname, comment, team }) => {
+    addFeed(`💬 ${nickname}${team?` [${team}]`:''}: ${comment}`, 'comment');
+  });
+
+  socket.on('game:gift', ({ nickname, giftName, coins, team }) => {
+    addFeed(`🎁 ${nickname}${team?` [${team}]`:''} sent ${giftName} (${coins} coins)`, 'gift');
+  });
+
+  socket.on('game:join', ({ nickname }) => {
+    addFeed(`👤 ${nickname} joined the stream`, 'join');
+  });
+
+  socket.on('player:team_assigned', ({ nickname, team }) => {
+    addFeed(`🏳️ ${nickname} joined Team ${team}!`, 'team');
+  });
+
+  socket.on('game:stopped', () => {
+    document.getElementById('btn-start').disabled = false;
+    document.getElementById('btn-stop').disabled = true;
+  });
+</script>
+</body>
+</html>

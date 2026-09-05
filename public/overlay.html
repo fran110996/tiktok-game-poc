@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TikTok Game — OBS Overlay</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: transparent;
+      font-family: 'Segoe UI', sans-serif;
+      color: #fff;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    /* TEAMS BAR — top */
+    #teams {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      padding: 12px 16px;
+    }
+
+    .team-pill {
+      background: rgba(0,0,0,0.75);
+      border-radius: 999px;
+      padding: 8px 22px;
+      font-size: 1.1rem;
+      font-weight: bold;
+      text-align: center;
+      min-width: 100px;
+      backdrop-filter: blur(6px);
+      border: 2px solid rgba(255,255,255,0.1);
+    }
+    .team-pill span { display: block; font-size: 0.7rem; opacity: 0.7; margin-bottom: 2px; }
+    .team-A { border-color: #ff1744; color: #ff5252; }
+    .team-B { border-color: #2979ff; color: #448aff; }
+    .team-C { border-color: #00e676; color: #69f0ae; }
+
+    /* LEADERBOARD — bottom right */
+    #leaderboard {
+      position: absolute;
+      bottom: 20px;
+      right: 16px;
+      background: rgba(0,0,0,0.78);
+      border-radius: 12px;
+      padding: 12px 16px;
+      min-width: 200px;
+      backdrop-filter: blur(6px);
+    }
+
+    #leaderboard h3 {
+      font-size: 0.75rem;
+      color: #00e5ff;
+      letter-spacing: 2px;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+    }
+
+    #lb-list { list-style: none; }
+    #lb-list li {
+      display: flex;
+      gap: 8px;
+      font-size: 0.82rem;
+      padding: 4px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    #lb-list li:last-child { border-bottom: none; }
+    .lb-rank { color: #888; width: 20px; }
+    .lb-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .lb-xp { color: #ffd740; font-weight: bold; }
+
+    /* EVENT TOAST — bottom left */
+    #toasts {
+      position: absolute;
+      bottom: 20px;
+      left: 16px;
+      display: flex;
+      flex-direction: column-reverse;
+      gap: 8px;
+    }
+
+    .toast {
+      background: rgba(0,0,0,0.8);
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 0.85rem;
+      max-width: 260px;
+      animation: fadeIn 0.3s ease;
+      backdrop-filter: blur(4px);
+    }
+    .toast.gift    { border-left: 3px solid #ffd740; }
+    .toast.team    { border-left: 3px solid #ea00ff; }
+    .toast.join    { border-left: 3px solid #00e676; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* NOT RUNNING banner */
+    #not-running {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0,0,0,0.6);
+      border-radius: 12px;
+      padding: 16px 28px;
+      font-size: 1rem;
+      color: #888;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Teams bar -->
+<div id="teams">
+  <div class="team-pill team-A"><span>TEAM A</span><strong id="score-A">0</strong> XP</div>
+  <div class="team-pill team-B"><span>TEAM B</span><strong id="score-B">0</strong> XP</div>
+  <div class="team-pill team-C"><span>TEAM C</span><strong id="score-C">0</strong> XP</div>
+</div>
+
+<!-- Leaderboard -->
+<div id="leaderboard">
+  <h3>🏆 Top Players</h3>
+  <ul id="lb-list"></ul>
+</div>
+
+<!-- Toast area -->
+<div id="toasts"></div>
+
+<!-- Not running notice -->
+<div id="not-running">Game not started yet</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  const socket = io();
+  const teamColors = { A:'#ff5252', B:'#448aff', C:'#69f0ae' };
+
+  function renderLeaderboard(data) {
+    const list = document.getElementById('lb-list');
+    list.innerHTML = data.slice(0, 8).map((p, i) => `
+      <li>
+        <span class="lb-rank">${i+1}.</span>
+        <span class="lb-name" style="color:${teamColors[p.team]||'#fff'}">${p.nickname || p.username}</span>
+        <span class="lb-xp">${p.total_xp}</span>
+      </li>
+    `).join('');
+  }
+
+  function showToast(text, type, duration = 4000) {
+    const toasts = document.getElementById('toasts');
+    const div = document.createElement('div');
+    div.className = `toast ${type}`;
+    div.textContent = text;
+    toasts.prepend(div);
+    if (toasts.children.length > 5) toasts.removeChild(toasts.lastChild);
+    setTimeout(() => div.remove(), duration);
+  }
+
+  socket.on('game:state', ({ isRunning, teamScores, leaderboard }) => {
+    document.getElementById('not-running').style.display = isRunning ? 'none' : 'block';
+    document.getElementById('score-A').textContent = teamScores.A;
+    document.getElementById('score-B').textContent = teamScores.B;
+    document.getElementById('score-C').textContent = teamScores.C;
+    renderLeaderboard(leaderboard);
+  });
+
+  socket.on('game:gift', ({ nickname, giftName, coins, team }) => {
+    showToast(`🎁 ${nickname}${team?` [${team}]`:''} sent ${giftName}!`, 'gift');
+  });
+
+  socket.on('player:team_assigned', ({ nickname, team }) => {
+    showToast(`🏳️ ${nickname} joined Team ${team}!`, 'team');
+  });
+
+  socket.on('game:join', ({ nickname }) => {
+    showToast(`👤 ${nickname} joined!`, 'join', 2500);
+  });
+
+  socket.on('game:stopped', () => {
+    document.getElementById('not-running').style.display = 'block';
+  });
+</script>
+</body>
+</html>
