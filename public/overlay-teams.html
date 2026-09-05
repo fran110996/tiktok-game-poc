@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Teams Overlay</title>
+  <title>Teams Overlay — TikTok LIVE</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body {
       background: transparent !important;
-      font-family: 'Segoe UI', sans-serif;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
       width: 100vw;
       height: 100vh;
       overflow: hidden;
@@ -17,52 +17,57 @@
     #teams {
       display: flex;
       justify-content: center;
-      gap: 14px;
-      padding: 14px;
+      gap: 20px;
+      padding: 24px 16px;
+      width: 100%;
     }
 
     .team-pill {
-      background: rgba(10, 10, 20, 0.82);
+      background: rgba(10, 12, 24, 0.92);
       border-radius: 999px;
-      padding: 10px 26px;
-      font-size: 1.15rem;
-      font-weight: bold;
+      padding: 16px 36px;
+      font-size: 1.8rem;
+      font-weight: 800;
       text-align: center;
-      min-width: 110px;
-      border: 2.5px solid rgba(255,255,255,0.12);
-      backdrop-filter: blur(8px);
+      min-width: 160px;
+      border: 4px solid rgba(255,255,255,0.15);
+      backdrop-filter: blur(12px);
       color: #fff;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+      transition: transform 0.2s;
     }
-    .team-pill span { display: block; font-size: 0.68rem; opacity: 0.65; margin-bottom: 3px; letter-spacing: 1px; text-transform: uppercase; }
-    .team-A { border-color: #ff1744; }
+    .team-pill span { display: block; font-size: 0.95rem; opacity: 0.8; margin-bottom: 4px; letter-spacing: 2px; text-transform: uppercase; }
+    .team-A { border-color: #ff1744; box-shadow: 0 0 20px rgba(255, 23, 68, 0.3); }
     .team-A strong { color: #ff5252; }
-    .team-B { border-color: #2979ff; }
+    .team-B { border-color: #2979ff; box-shadow: 0 0 20px rgba(41, 121, 255, 0.3); }
     .team-B strong { color: #448aff; }
-    .team-C { border-color: #00e676; }
+    .team-C { border-color: #00e676; box-shadow: 0 0 20px rgba(0, 230, 118, 0.3); }
     .team-C strong { color: #69f0ae; }
 
     .toast-area {
       position: fixed;
-      bottom: 16px;
-      left: 16px;
+      bottom: 24px;
+      left: 24px;
       display: flex;
       flex-direction: column-reverse;
-      gap: 8px;
+      gap: 12px;
     }
     .toast {
-      background: rgba(10,10,20,0.85);
-      border-radius: 8px;
-      padding: 8px 14px;
-      font-size: 0.85rem;
+      background: rgba(10, 12, 24, 0.94);
+      border-radius: 14px;
+      padding: 14px 22px;
+      font-size: 1.25rem;
+      font-weight: 600;
       color: #fff;
-      max-width: 280px;
+      max-width: 420px;
       animation: fadeIn 0.3s ease;
-      border-left: 3px solid #ea00ff;
+      border-left: 5px solid #ea00ff;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.6);
     }
     .toast.gift { border-color: #ffd740; }
     .toast.join { border-color: #00e676; }
     @keyframes fadeIn {
-      from { opacity:0; transform:translateY(8px); }
+      from { opacity:0; transform:translateY(12px); }
       to   { opacity:1; transform:translateY(0); }
     }
   </style>
@@ -81,25 +86,37 @@
 <script>
   const socket = io();
 
+  function updateTeamScores(teamScores) {
+    if (!teamScores) return;
+    document.getElementById('score-A').textContent = teamScores.A || 0;
+    document.getElementById('score-B').textContent = teamScores.B || 0;
+    document.getElementById('score-C').textContent = teamScores.C || 0;
+  }
+
+  // 1. Cargar puntajes iniciales directamente desde la base de datos
+  fetch('/api/teams')
+    .then(r => r.json())
+    .then(scores => updateTeamScores(scores))
+    .catch(err => console.error('Error fetching initial team scores:', err));
+
+  // 2. Escuchar actualizaciones en vivo
   socket.on('game:state', ({ teamScores }) => {
-    document.getElementById('score-A').textContent = teamScores.A;
-    document.getElementById('score-B').textContent = teamScores.B;
-    document.getElementById('score-C').textContent = teamScores.C;
+    updateTeamScores(teamScores);
   });
 
-  function toast(text, type, ms = 3500) {
+  function toast(text, type, ms = 4000) {
     const area = document.getElementById('toasts');
     const d = document.createElement('div');
     d.className = `toast ${type}`;
     d.textContent = text;
     area.prepend(d);
-    if (area.children.length > 4) area.removeChild(area.lastChild);
+    if (area.children.length > 5) area.removeChild(area.lastChild);
     setTimeout(() => d.remove(), ms);
   }
 
-  socket.on('player:team_assigned', ({ nickname, team }) => toast(`🏳️ ${nickname} → Team ${team}`, 'team'));
-  socket.on('game:gift', ({ nickname, giftName }) => toast(`🎁 ${nickname} sent ${giftName}!`, 'gift'));
-  socket.on('game:join', ({ nickname }) => toast(`👤 ${nickname} joined`, 'join', 2000));
+  socket.on('player:team_assigned', ({ nickname, team }) => toast(`🏳️ ${nickname} se unió al Team ${team}!`, 'team'));
+  socket.on('game:gift', ({ nickname, giftName }) => toast(`🎁 ${nickname} envió ${giftName}!`, 'gift'));
+  socket.on('game:join', ({ nickname }) => toast(`👤 ${nickname} se unió al LIVE`, 'join', 2500));
 </script>
 </body>
 </html>

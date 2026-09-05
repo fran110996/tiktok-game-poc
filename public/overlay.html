@@ -3,117 +3,110 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>TikTok Game — OBS Overlay</title>
+  <title>TikTok Game — Full Overlay</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      background: transparent;
-      font-family: 'Segoe UI', sans-serif;
+    html, body {
+      background: transparent !important;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
       color: #fff;
       width: 100vw;
       height: 100vh;
       overflow: hidden;
-      pointer-events: none;
     }
 
     /* TEAMS BAR — top */
     #teams {
       display: flex;
       justify-content: center;
-      gap: 12px;
-      padding: 12px 16px;
+      gap: 16px;
+      padding: 24px 16px;
+      width: 100%;
     }
 
     .team-pill {
-      background: rgba(0,0,0,0.75);
+      background: rgba(10, 12, 24, 0.92);
       border-radius: 999px;
-      padding: 8px 22px;
-      font-size: 1.1rem;
-      font-weight: bold;
+      padding: 14px 30px;
+      font-size: 1.5rem;
+      font-weight: 800;
       text-align: center;
-      min-width: 100px;
-      backdrop-filter: blur(6px);
-      border: 2px solid rgba(255,255,255,0.1);
+      min-width: 140px;
+      border: 3.5px solid rgba(255,255,255,0.15);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.6);
     }
-    .team-pill span { display: block; font-size: 0.7rem; opacity: 0.7; margin-bottom: 2px; }
+    .team-pill span { display: block; font-size: 0.85rem; opacity: 0.8; margin-bottom: 2px; letter-spacing: 2px; }
     .team-A { border-color: #ff1744; color: #ff5252; }
     .team-B { border-color: #2979ff; color: #448aff; }
     .team-C { border-color: #00e676; color: #69f0ae; }
 
-    /* LEADERBOARD — bottom right */
+    /* LEADERBOARD — middle / bottom */
     #leaderboard {
       position: absolute;
-      bottom: 20px;
-      right: 16px;
-      background: rgba(0,0,0,0.78);
-      border-radius: 12px;
-      padding: 12px 16px;
-      min-width: 200px;
-      backdrop-filter: blur(6px);
+      bottom: 40px;
+      right: 24px;
+      background: rgba(10, 12, 24, 0.92);
+      border-radius: 20px;
+      padding: 22px 28px;
+      min-width: 320px;
+      max-width: 440px;
+      backdrop-filter: blur(12px);
+      border: 2px solid rgba(0, 229, 255, 0.25);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.7);
     }
 
     #leaderboard h3 {
-      font-size: 0.75rem;
+      font-size: 1.1rem;
       color: #00e5ff;
       letter-spacing: 2px;
-      margin-bottom: 10px;
+      margin-bottom: 14px;
       text-transform: uppercase;
+      text-shadow: 0 0 10px rgba(0, 229, 255, 0.5);
     }
 
     #lb-list { list-style: none; }
     #lb-list li {
       display: flex;
-      gap: 8px;
-      font-size: 0.82rem;
-      padding: 4px 0;
-      border-bottom: 1px solid rgba(255,255,255,0.06);
+      gap: 12px;
+      font-size: 1.15rem;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      align-items: center;
     }
     #lb-list li:last-child { border-bottom: none; }
-    .lb-rank { color: #888; width: 20px; }
-    .lb-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .lb-xp { color: #ffd740; font-weight: bold; }
+    .lb-rank { color: #888; width: 28px; font-weight: bold; }
+    .lb-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+    .lb-xp { color: #ffd740; font-weight: 800; font-size: 1.2rem; }
 
     /* EVENT TOAST — bottom left */
     #toasts {
       position: absolute;
-      bottom: 20px;
-      left: 16px;
+      bottom: 40px;
+      left: 24px;
       display: flex;
       flex-direction: column-reverse;
-      gap: 8px;
+      gap: 12px;
     }
 
     .toast {
-      background: rgba(0,0,0,0.8);
-      border-radius: 8px;
-      padding: 8px 14px;
-      font-size: 0.85rem;
-      max-width: 260px;
+      background: rgba(10, 12, 24, 0.94);
+      border-radius: 12px;
+      padding: 12px 18px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      max-width: 360px;
       animation: fadeIn 0.3s ease;
-      backdrop-filter: blur(4px);
+      backdrop-filter: blur(8px);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.6);
     }
-    .toast.gift    { border-left: 3px solid #ffd740; }
-    .toast.team    { border-left: 3px solid #ea00ff; }
-    .toast.join    { border-left: 3px solid #00e676; }
+    .toast.gift    { border-left: 4px solid #ffd740; }
+    .toast.team    { border-left: 4px solid #ea00ff; }
+    .toast.join    { border-left: 4px solid #00e676; }
 
     @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
+      from { opacity: 0; transform: translateY(12px); }
       to   { opacity: 1; transform: translateY(0); }
-    }
-
-    /* NOT RUNNING banner */
-    #not-running {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: rgba(0,0,0,0.6);
-      border-radius: 12px;
-      padding: 16px 28px;
-      font-size: 1rem;
-      color: #888;
-      display: none;
     }
   </style>
 </head>
@@ -135,24 +128,33 @@
 <!-- Toast area -->
 <div id="toasts"></div>
 
-<!-- Not running notice -->
-<div id="not-running">Game not started yet</div>
-
 <script src="/socket.io/socket.io.js"></script>
 <script>
   const socket = io();
   const teamColors = { A:'#ff5252', B:'#448aff', C:'#69f0ae' };
 
   function renderLeaderboard(data) {
+    if (!data || !Array.isArray(data)) return;
     const list = document.getElementById('lb-list');
     list.innerHTML = data.slice(0, 8).map((p, i) => `
       <li>
-        <span class="lb-rank">${i+1}.</span>
+        <span class="lb-rank">${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`}</span>
         <span class="lb-name" style="color:${teamColors[p.team]||'#fff'}">${p.nickname || p.username}</span>
         <span class="lb-xp">${p.total_xp}</span>
       </li>
     `).join('');
   }
+
+  function updateTeamScores(teamScores) {
+    if (!teamScores) return;
+    document.getElementById('score-A').textContent = teamScores.A || 0;
+    document.getElementById('score-B').textContent = teamScores.B || 0;
+    document.getElementById('score-C').textContent = teamScores.C || 0;
+  }
+
+  // Initial fetch
+  fetch('/api/leaderboard').then(r => r.json()).then(data => renderLeaderboard(data)).catch(() => {});
+  fetch('/api/teams').then(r => r.json()).then(scores => updateTeamScores(scores)).catch(() => {});
 
   function showToast(text, type, duration = 4000) {
     const toasts = document.getElementById('toasts');
@@ -164,28 +166,21 @@
     setTimeout(() => div.remove(), duration);
   }
 
-  socket.on('game:state', ({ isRunning, teamScores, leaderboard }) => {
-    document.getElementById('not-running').style.display = isRunning ? 'none' : 'block';
-    document.getElementById('score-A').textContent = teamScores.A;
-    document.getElementById('score-B').textContent = teamScores.B;
-    document.getElementById('score-C').textContent = teamScores.C;
+  socket.on('game:state', ({ teamScores, leaderboard }) => {
+    updateTeamScores(teamScores);
     renderLeaderboard(leaderboard);
   });
 
-  socket.on('game:gift', ({ nickname, giftName, coins, team }) => {
-    showToast(`🎁 ${nickname}${team?` [${team}]`:''} sent ${giftName}!`, 'gift');
+  socket.on('game:gift', ({ nickname, giftName }) => {
+    showToast(`🎁 ${nickname} envió ${giftName}!`, 'gift');
   });
 
   socket.on('player:team_assigned', ({ nickname, team }) => {
-    showToast(`🏳️ ${nickname} joined Team ${team}!`, 'team');
+    showToast(`🏳️ ${nickname} se unió al Team ${team}!`, 'team');
   });
 
   socket.on('game:join', ({ nickname }) => {
-    showToast(`👤 ${nickname} joined!`, 'join', 2500);
-  });
-
-  socket.on('game:stopped', () => {
-    document.getElementById('not-running').style.display = 'block';
+    showToast(`👤 ${nickname} se unió!`, 'join', 2500);
   });
 </script>
 </body>

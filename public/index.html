@@ -10,7 +10,7 @@
     body {
       background: #0d0d1a;
       color: #f0f0f0;
-      font-family: 'Segoe UI', sans-serif;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
       min-height: 100vh;
       padding: 20px;
     }
@@ -91,6 +91,75 @@
     .btn-stop     { background: #ff1744; color: #fff; }
     .btn-reset    { background: #ff9100; color: #0d0d1a; }
     .btn-disconnect { background: #555; color: #fff; }
+
+    /* OVERLAYS SECTION */
+    #overlays-section {
+      background: #1a1a2e;
+      border-radius: 10px;
+      padding: 18px;
+      margin-bottom: 20px;
+    }
+    #overlays-section h2 {
+      font-size: 1rem;
+      color: #00e5ff;
+      margin-bottom: 14px;
+      letter-spacing: 1px;
+    }
+    .overlay-cards-grid {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .overlay-card {
+      flex: 1;
+      min-width: 220px;
+      background: #0d0d1a;
+      border-radius: 8px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 12px;
+      border: 1px solid #2a2a3e;
+    }
+    .overlay-info h3 {
+      font-size: 0.95rem;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+    .overlay-info p {
+      font-size: 0.8rem;
+      color: #888;
+    }
+    .overlay-actions {
+      display: flex;
+      gap: 8px;
+    }
+    .btn-overlay-open {
+      padding: 8px 14px;
+      background: #2a2a4e;
+      color: #00e5ff;
+      text-decoration: none;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: bold;
+      text-align: center;
+      transition: background 0.2s;
+    }
+    .btn-overlay-open:hover { background: #3a3a6e; }
+    .btn-overlay-copy {
+      padding: 8px 14px;
+      background: #00e5ff;
+      color: #0d0d1a;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: bold;
+      cursor: pointer;
+      flex: 1;
+      transition: opacity 0.2s;
+    }
+    .btn-overlay-copy:hover { opacity: 0.85; }
 
     /* TEAMS */
     #teams {
@@ -173,84 +242,6 @@
     .feed-item.gift    { border-left: 3px solid #ffd740; }
     .feed-item.join    { border-left: 3px solid #00e676; }
     .feed-item.team    { border-left: 3px solid #ea00ff; }
-
-    /* OVERLAYS SECTION */
-    #overlays-section {
-      background: #1a1a2e;
-      border-radius: 10px;
-      padding: 18px;
-      margin-bottom: 20px;
-    }
-    #overlays-section h2 {
-      font-size: 1rem;
-      color: #00e5ff;
-      margin-bottom: 14px;
-      letter-spacing: 1px;
-    }
-    .overlay-cards-grid {
-      display: flex;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-    .overlay-card {
-      flex: 1;
-      min-width: 220px;
-      background: #0d0d1a;
-      border-radius: 8px;
-      padding: 14px;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      gap: 12px;
-      border: 1px solid #2a2a3e;
-    }
-    .overlay-info h3 {
-      font-size: 0.95rem;
-      color: #fff;
-      margin-bottom: 4px;
-    }
-    .overlay-info p {
-      font-size: 0.8rem;
-      color: #888;
-    }
-    .overlay-actions {
-      display: flex;
-      gap: 8px;
-    }
-    .btn-overlay-open {
-      padding: 8px 14px;
-      background: #2a2a4e;
-      color: #00e5ff;
-      text-decoration: none;
-      border-radius: 6px;
-      font-size: 0.85rem;
-      font-weight: bold;
-      text-align: center;
-      transition: background 0.2s;
-    }
-    .btn-overlay-open:hover { background: #3a3a6e; }
-    .btn-overlay-copy {
-      padding: 8px 14px;
-      background: #00e5ff;
-      color: #0d0d1a;
-      border: none;
-      border-radius: 6px;
-      font-size: 0.85rem;
-      font-weight: bold;
-      cursor: pointer;
-      flex: 1;
-      transition: opacity 0.2s;
-    }
-    .btn-overlay-copy:hover { opacity: 0.85; }
-
-    .overlay-link {
-      display: block;
-      text-align: center;
-      margin-top: 20px;
-      color: #888;
-      font-size: 0.8rem;
-    }
-    .overlay-link a { color: #00e5ff; }
   </style>
 </head>
 <body>

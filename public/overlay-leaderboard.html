@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Leaderboard Overlay</title>
+  <title>Leaderboard Overlay — TikTok LIVE</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body {
       background: transparent !important;
-      font-family: 'Segoe UI', sans-serif;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
       width: 100vw;
       height: 100vh;
       overflow: hidden;
@@ -19,50 +19,54 @@
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      background: rgba(10, 10, 20, 0.85);
-      border-radius: 14px;
-      padding: 14px 18px;
-      min-width: 260px;
-      max-width: 400px;
-      width: 90%;
-      backdrop-filter: blur(8px);
-      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(10, 12, 24, 0.92);
+      border-radius: 24px;
+      padding: 28px 36px;
+      width: 92%;
+      max-width: 580px;
+      backdrop-filter: blur(14px);
+      border: 3px solid rgba(0, 229, 255, 0.25);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.7);
     }
 
     #leaderboard h3 {
-      font-size: 0.72rem;
+      font-size: 1.4rem;
       color: #00e5ff;
-      letter-spacing: 2px;
+      letter-spacing: 3px;
       text-transform: uppercase;
-      margin-bottom: 12px;
+      margin-bottom: 20px;
+      text-align: center;
+      text-shadow: 0 0 12px rgba(0, 229, 255, 0.6);
     }
 
     #lb-list { list-style: none; }
     #lb-list li {
       display: flex;
-      gap: 8px;
+      gap: 16px;
       align-items: center;
-      font-size: 0.83rem;
+      font-size: 1.35rem;
       color: #f0f0f0;
-      padding: 5px 0;
-      border-bottom: 1px solid rgba(255,255,255,0.06);
+      padding: 12px 10px;
+      border-bottom: 1.5px solid rgba(255,255,255,0.08);
     }
     #lb-list li:last-child { border-bottom: none; }
 
-    .lb-rank { color: #666; width: 18px; font-size: 0.75rem; }
-    .lb-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .lb-xp { color: #ffd740; font-weight: bold; font-size: 0.8rem; }
+    .lb-rank { color: #888; width: 36px; font-size: 1.3rem; font-weight: bold; }
+    .lb-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+    .lb-team { font-size: 1.1rem; padding: 2px 8px; border-radius: 6px; font-weight: bold; }
+    .lb-xp { color: #ffd740; font-weight: 800; font-size: 1.4rem; text-shadow: 0 0 8px rgba(255, 215, 64, 0.4); }
 
-    /* Top 3 gold/silver/bronze */
-    li:nth-child(1) .lb-rank { color: #ffd740; font-weight: bold; }
-    li:nth-child(2) .lb-rank { color: #c0c0c0; font-weight: bold; }
-    li:nth-child(3) .lb-rank { color: #cd7f32; font-weight: bold; }
+    /* Top 3 rank highlighting */
+    li:nth-child(1) .lb-rank { color: #ffd740; font-size: 1.6rem; }
+    li:nth-child(2) .lb-rank { color: #e0e0e0; font-size: 1.5rem; }
+    li:nth-child(3) .lb-rank { color: #cd7f32; font-size: 1.4rem; }
+    li:nth-child(1) { background: rgba(255, 215, 64, 0.08); border-radius: 10px; }
   </style>
 </head>
 <body>
 
 <div id="leaderboard">
-  <h3>🏆 Top Players</h3>
+  <h3>🏆 TOP PLAYERS</h3>
   <ul id="lb-list"></ul>
 </div>
 
@@ -71,15 +75,28 @@
   const socket = io();
   const teamColors = { A:'#ff5252', B:'#448aff', C:'#69f0ae' };
 
-  socket.on('game:state', ({ leaderboard }) => {
+  function renderLeaderboard(leaderboard) {
+    if (!leaderboard || !Array.isArray(leaderboard)) return;
     const list = document.getElementById('lb-list');
     list.innerHTML = leaderboard.slice(0, 8).map((p, i) => `
       <li>
-        <span class="lb-rank">${i + 1}.</span>
+        <span class="lb-rank">${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`}</span>
         <span class="lb-name" style="color:${teamColors[p.team] || '#f0f0f0'}">${p.nickname || p.username}</span>
+        ${p.team ? `<span class="lb-team" style="background:${teamColors[p.team]}22; color:${teamColors[p.team]}">[${p.team}]</span>` : ''}
         <span class="lb-xp">${p.total_xp} XP</span>
       </li>
     `).join('');
+  }
+
+  // 1. Cargar datos iniciales directamente desde la base de datos
+  fetch('/api/leaderboard')
+    .then(r => r.json())
+    .then(data => renderLeaderboard(data))
+    .catch(err => console.error('Error fetching initial leaderboard:', err));
+
+  // 2. Escuchar actualizaciones en vivo
+  socket.on('game:state', ({ leaderboard }) => {
+    renderLeaderboard(leaderboard);
   });
 </script>
 </body>
