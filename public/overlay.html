@@ -131,7 +131,7 @@
 
 <!-- Leaderboard -->
 <div id="leaderboard">
-  <h3>🏆 Top Players</h3>
+  <h3>🏆 TOP PLAYERS</h3>
   <ul id="lb-list"></ul>
 </div>
 
@@ -163,7 +163,7 @@
     document.getElementById('score-C').textContent = teamScores.C || 0;
   }
 
-  // Initial fetch
+  // Initial fetch from DB
   fetch('/api/leaderboard').then(r => r.json()).then(data => renderLeaderboard(data)).catch(() => {});
   fetch('/api/teams').then(r => r.json()).then(scores => updateTeamScores(scores)).catch(() => {});
 
@@ -183,15 +183,15 @@
   });
 
   socket.on('game:gift', ({ nickname, giftName }) => {
-    showToast(`🎁 ${nickname} envió ${giftName}!`, 'gift');
+    showToast(`🎁 ${nickname} sent ${giftName}!`, 'gift');
   });
 
   socket.on('player:team_assigned', ({ nickname, team }) => {
-    showToast(`🏳️ ${nickname} se unió al Team ${team}!`, 'team');
+    showToast(`🏳️ ${nickname} joined Team ${team}!`, 'team');
   });
 
   socket.on('game:join', ({ nickname }) => {
-    showToast(`👤 ${nickname} se unió!`, 'join', 2500);
+    showToast(`👤 ${nickname} joined the stream`, 'join', 2500);
   });
 </script>
 </body>

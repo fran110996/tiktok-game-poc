@@ -117,13 +117,13 @@
     document.getElementById('score-C').textContent = teamScores.C || 0;
   }
 
-  // 1. Cargar puntajes iniciales directamente desde Supabase
+  // 1. Initial fetch from DB
   fetch('/api/teams')
     .then(r => r.json())
     .then(scores => updateTeamScores(scores))
     .catch(err => console.error('Error fetching initial team scores:', err));
 
-  // 2. Escuchar actualizaciones en vivo
+  // 2. Real-time updates
   socket.on('game:state', ({ teamScores }) => {
     updateTeamScores(teamScores);
   });
@@ -138,9 +138,9 @@
     setTimeout(() => d.remove(), ms);
   }
 
-  socket.on('player:team_assigned', ({ nickname, team }) => toast(`🏳️ ${nickname} se unió al Team ${team}!`, 'team'));
-  socket.on('game:gift', ({ nickname, giftName }) => toast(`🎁 ${nickname} envió ${giftName}!`, 'gift'));
-  socket.on('game:join', ({ nickname }) => toast(`👤 ${nickname} se unió al LIVE`, 'join', 2500));
+  socket.on('player:team_assigned', ({ nickname, team }) => toast(`🏳️ ${nickname} joined Team ${team}!`, 'team'));
+  socket.on('game:gift', ({ nickname, giftName }) => toast(`🎁 ${nickname} sent ${giftName}!`, 'gift'));
+  socket.on('game:join', ({ nickname }) => toast(`👤 ${nickname} joined the stream`, 'join', 2500));
 </script>
 </body>
 </html>

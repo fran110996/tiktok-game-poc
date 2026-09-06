@@ -246,7 +246,7 @@
 </head>
 <body>
 
-<h1>🎮 TikTok Game POC — Dashboard</h1>
+<h1>🎮 TikTok Game POC — Host Dashboard</h1>
 
 <!-- Status -->
 <div id="status-bar">
@@ -271,27 +271,27 @@
 
 <!-- Overlays Section -->
 <div id="overlays-section">
-  <h2>📺 OVERLAYS PARA OBS / TIKTOK LIVE STUDIO</h2>
+  <h2>📺 OBS / TIKTOK LIVE STUDIO OVERLAYS</h2>
   <div class="overlay-cards-grid">
     <div class="overlay-card">
       <div class="overlay-info">
-        <h3>🛡️ Equipos & Notificaciones</h3>
-        <p>Barra superior con puntajes A/B/C y alertas en vivo</p>
+        <h3>🛡️ Teams & Notifications</h3>
+        <p>Top bar with A/B/C scores & live event alerts</p>
       </div>
       <div class="overlay-actions">
-        <a href="/overlay/teams" target="_blank" class="btn-overlay-open">Abrir</a>
-        <button class="btn-overlay-copy" onclick="copyOverlayUrl('/overlay/teams', this)">📋 Copiar Link</button>
+        <a href="/overlay/teams" target="_blank" class="btn-overlay-open">Open</a>
+        <button class="btn-overlay-copy" onclick="copyOverlayUrl('/overlay/teams', this)">📋 Copy Link</button>
       </div>
     </div>
 
     <div class="overlay-card">
       <div class="overlay-info">
         <h3>🏆 Leaderboard Top Players</h3>
-        <p>Ranking centrado en vivo con los mejores jugadores</p>
+        <p>Centered live ranking with top active players</p>
       </div>
       <div class="overlay-actions">
-        <a href="/overlay/leaderboard" target="_blank" class="btn-overlay-open">Abrir</a>
-        <button class="btn-overlay-copy" onclick="copyOverlayUrl('/overlay/leaderboard', this)">📋 Copiar Link</button>
+        <a href="/overlay/leaderboard" target="_blank" class="btn-overlay-open">Open</a>
+        <button class="btn-overlay-copy" onclick="copyOverlayUrl('/overlay/leaderboard', this)">📋 Copy Link</button>
       </div>
     </div>
   </div>
@@ -336,7 +336,7 @@
     const fullUrl = window.location.origin + path;
     navigator.clipboard.writeText(fullUrl).then(() => {
       const origText = btn.innerHTML;
-      btn.innerHTML = '✅ ¡Copiado!';
+      btn.innerHTML = '✅ Copied!';
       btn.style.background = '#00e676';
       setTimeout(() => {
         btn.innerHTML = origText;
