@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>TikTok Game — Full Overlay</title>
+  <title>TikTok Game — Full Mobile & OBS Overlay</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body {
@@ -13,55 +13,62 @@
       width: 100vw;
       height: 100vh;
       overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 12px;
     }
 
     /* TEAMS BAR — top */
     #teams {
       display: flex;
       justify-content: center;
-      gap: 16px;
-      padding: 24px 16px;
+      align-items: center;
+      gap: 10px;
       width: 100%;
     }
 
     .team-pill {
-      background: rgba(10, 12, 24, 0.92);
+      background: rgba(10, 12, 24, 0.94);
       border-radius: 999px;
-      padding: 14px 30px;
-      font-size: 1.5rem;
+      padding: 10px 14px;
+      font-size: 1.35rem;
       font-weight: 800;
       text-align: center;
-      min-width: 140px;
-      border: 3.5px solid rgba(255,255,255,0.15);
+      flex: 1;
+      max-width: 180px;
+      min-width: 85px;
+      border: 3px solid rgba(255,255,255,0.15);
       backdrop-filter: blur(10px);
       box-shadow: 0 8px 24px rgba(0,0,0,0.6);
     }
-    .team-pill span { display: block; font-size: 0.85rem; opacity: 0.8; margin-bottom: 2px; letter-spacing: 2px; }
-    .team-A { border-color: #ff1744; color: #ff5252; }
-    .team-B { border-color: #2979ff; color: #448aff; }
-    .team-C { border-color: #00e676; color: #69f0ae; }
+    .team-pill span { display: block; font-size: 0.72rem; opacity: 0.85; margin-bottom: 2px; letter-spacing: 1px; text-transform: uppercase; white-space: nowrap; }
+    .team-pill strong { display: block; font-size: 1.4rem; line-height: 1.1; }
+    .team-pill small { display: block; font-size: 0.65rem; opacity: 0.7; }
+    .team-A { border-color: #ff1744; color: #ff5252; box-shadow: 0 0 16px rgba(255, 23, 68, 0.35); }
+    .team-B { border-color: #2979ff; color: #448aff; box-shadow: 0 0 16px rgba(41, 121, 255, 0.35); }
+    .team-C { border-color: #00e676; color: #69f0ae; box-shadow: 0 0 16px rgba(0, 230, 118, 0.35); }
 
-    /* LEADERBOARD — middle / bottom */
+    /* LEADERBOARD — centered / bottom */
     #leaderboard {
-      position: absolute;
-      bottom: 40px;
-      right: 24px;
       background: rgba(10, 12, 24, 0.92);
       border-radius: 20px;
-      padding: 22px 28px;
-      min-width: 320px;
-      max-width: 440px;
+      padding: 20px 24px;
+      width: 100%;
+      max-width: 480px;
+      margin: auto auto 10px auto;
       backdrop-filter: blur(12px);
       border: 2px solid rgba(0, 229, 255, 0.25);
       box-shadow: 0 10px 30px rgba(0,0,0,0.7);
     }
 
     #leaderboard h3 {
-      font-size: 1.1rem;
+      font-size: 1.2rem;
       color: #00e5ff;
       letter-spacing: 2px;
       margin-bottom: 14px;
       text-transform: uppercase;
+      text-align: center;
       text-shadow: 0 0 10px rgba(0, 229, 255, 0.5);
     }
 
@@ -70,30 +77,33 @@
       display: flex;
       gap: 12px;
       font-size: 1.15rem;
-      padding: 8px 0;
+      padding: 8px 4px;
       border-bottom: 1px solid rgba(255,255,255,0.08);
       align-items: center;
     }
     #lb-list li:last-child { border-bottom: none; }
-    .lb-rank { color: #888; width: 28px; font-weight: bold; }
+    .lb-rank { color: #888; width: 30px; font-weight: bold; font-size: 1.1rem; }
     .lb-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
-    .lb-xp { color: #ffd740; font-weight: 800; font-size: 1.2rem; }
+    .lb-team { font-size: 0.95rem; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
+    .lb-xp { color: #ffd740; font-weight: 800; font-size: 1.25rem; }
 
-    /* EVENT TOAST — bottom left */
+    /* EVENT TOAST — bottom */
     #toasts {
-      position: absolute;
-      bottom: 40px;
-      left: 24px;
+      position: fixed;
+      bottom: 14px;
+      left: 14px;
+      right: 14px;
       display: flex;
       flex-direction: column-reverse;
-      gap: 12px;
+      gap: 10px;
+      pointer-events: none;
     }
 
     .toast {
       background: rgba(10, 12, 24, 0.94);
       border-radius: 12px;
-      padding: 12px 18px;
-      font-size: 1.1rem;
+      padding: 10px 16px;
+      font-size: 1.05rem;
       font-weight: 600;
       max-width: 360px;
       animation: fadeIn 0.3s ease;
@@ -105,7 +115,7 @@
     .toast.join    { border-left: 4px solid #00e676; }
 
     @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(12px); }
+      from { opacity: 0; transform: translateY(10px); }
       to   { opacity: 1; transform: translateY(0); }
     }
   </style>
@@ -114,9 +124,9 @@
 
 <!-- Teams bar -->
 <div id="teams">
-  <div class="team-pill team-A"><span>TEAM A</span><strong id="score-A">0</strong> XP</div>
-  <div class="team-pill team-B"><span>TEAM B</span><strong id="score-B">0</strong> XP</div>
-  <div class="team-pill team-C"><span>TEAM C</span><strong id="score-C">0</strong> XP</div>
+  <div class="team-pill team-A"><span>TEAM A</span><strong id="score-A">0</strong><small>XP</small></div>
+  <div class="team-pill team-B"><span>TEAM B</span><strong id="score-B">0</strong><small>XP</small></div>
+  <div class="team-pill team-C"><span>TEAM C</span><strong id="score-C">0</strong><small>XP</small></div>
 </div>
 
 <!-- Leaderboard -->
@@ -140,7 +150,8 @@
       <li>
         <span class="lb-rank">${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`}</span>
         <span class="lb-name" style="color:${teamColors[p.team]||'#fff'}">${p.nickname || p.username}</span>
-        <span class="lb-xp">${p.total_xp}</span>
+        ${p.team ? `<span class="lb-team" style="background:${teamColors[p.team]}22; color:${teamColors[p.team]}">[${p.team}]</span>` : ''}
+        <span class="lb-xp">${p.total_xp} XP</span>
       </li>
     `).join('');
   }
