@@ -242,6 +242,81 @@
     .feed-item.gift    { border-left: 3px solid #ffd740; }
     .feed-item.join    { border-left: 3px solid #00e676; }
     .feed-item.team    { border-left: 3px solid #ea00ff; }
+    .feed-item.flash   { border-left: 3px solid #ff007f; color: #ff80df; }
+
+    /* FLASH & MATCH SECTION */
+    #flash-section {
+      background: #1a1a2e;
+      border: 2px solid rgba(0, 229, 255, 0.4);
+      border-radius: 12px;
+      padding: 18px;
+      margin-bottom: 20px;
+      box-shadow: 0 0 20px rgba(0, 229, 255, 0.15);
+    }
+    #flash-section h2 {
+      font-size: 1.1rem;
+      color: #00e5ff;
+      margin-bottom: 12px;
+      letter-spacing: 1px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .flash-status-badge {
+      font-size: 0.75rem;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: #2a2a4e;
+      color: #aaa;
+      font-weight: bold;
+      text-transform: uppercase;
+    }
+    .flash-status-badge.active {
+      background: #00e676;
+      color: #0d0d1a;
+      box-shadow: 0 0 10px #00e676;
+    }
+    .flash-controls-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .flash-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .flash-row select, .flash-row input {
+      flex: 1;
+      min-width: 180px;
+      padding: 10px 14px;
+      border: 1px solid #2a2a4e;
+      border-radius: 8px;
+      background: #0d0d1a;
+      color: #f0f0f0;
+      font-size: 0.95rem;
+      outline: none;
+    }
+    .btn-flash-start { background: linear-gradient(90deg, #ff007f, #7928ca); color: #fff; }
+    .btn-flash-stop  { background: #ff1744; color: #fff; }
+    .btn-flash-sim   { background: #ffd740; color: #0d0d1a; font-weight: 800; }
+    .flash-live-card {
+      background: #0d0d1a;
+      border: 1px solid #2a2a4e;
+      border-radius: 8px;
+      padding: 12px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 0.9rem;
+    }
+    .flash-live-header {
+      display: flex;
+      justify-content: space-between;
+      color: #00e5ff;
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
@@ -257,7 +332,7 @@
 <!-- Connect -->
 <div id="connect-section">
   <input id="creator-input" type="text" placeholder="@tiktok_username (without @)" />
-  <input id="session-input" type="password" placeholder="TikTok sessionid cookie (required)" />
+  <input id="session-input" type="password" placeholder="TikTok sessionid cookie (optional)" />
   <button class="btn-connect" onclick="connectTikTok()">Connect TikTok</button>
   <button class="btn-disconnect" onclick="disconnectTikTok()">Disconnect</button>
 </div>
@@ -273,6 +348,17 @@
 <div id="overlays-section">
   <h2>📺 OBS / TIKTOK LIVE STUDIO OVERLAYS</h2>
   <div class="overlay-cards-grid">
+    <div class="overlay-card" style="border: 1.5px solid rgba(255, 0, 127, 0.5);">
+      <div class="overlay-info">
+        <h3 style="color: #ff007f;">⚡ Flash & Match Live</h3>
+        <p>Interactive game cards, countdown & MVP celebration</p>
+      </div>
+      <div class="overlay-actions">
+        <a href="/overlay/flash" target="_blank" class="btn-overlay-open">Open</a>
+        <button class="btn-overlay-copy" style="background: #ff007f; color: #fff;" onclick="copyOverlayUrl('/overlay/flash', this)">📋 Copy Link</button>
+      </div>
+    </div>
+
     <div class="overlay-card">
       <div class="overlay-info">
         <h3>🛡️ Teams & Notifications</h3>
@@ -294,6 +380,69 @@
         <button class="btn-overlay-copy" onclick="copyOverlayUrl('/overlay/leaderboard', this)">📋 Copy Link</button>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- ⚡ Flash & Match Game Control -->
+<div id="flash-section">
+  <h2>
+    <span>⚡ FLASH & MATCH CONTROLLER</span>
+    <span class="flash-status-badge" id="flash-badge-status">IDLE</span>
+  </h2>
+  
+  <div class="flash-controls-grid">
+    <div class="flash-row">
+      <select id="flash-preset-select" onchange="onPresetSelected()">
+        <option value="0">🧴 Preset 1: Glow Skincare Serum ($25 USD Match)</option>
+        <option value="1">🎧 Preset 2: Cyber Neon Headset (Cyber Cyan Match)</option>
+        <option value="2">👟 Preset 3: Future Runner Edition (2025 Match)</option>
+        <option value="3">⚡ Preset 4: Speed Math 18 + 17 (35 Match)</option>
+      </select>
+      <button class="btn-flash-start" id="btn-flash-start" onclick="startFlashRound()">▶ Start Flash Round (15s)</button>
+      <button class="btn-flash-stop" id="btn-flash-stop" onclick="stopFlashRound()" disabled>⏹ End Round</button>
+      <button class="btn-flash-sim" onclick="simulateChatTraffic()">🎲 Simulate Chat Matches</button>
+    </div>
+
+    <!-- Live Round Status Card -->
+    <div class="flash-live-card" id="flash-live-card">
+      <div class="flash-live-header">
+        <span id="live-card-title">Card: Glow Skincare Serum</span>
+        <span id="live-card-timer">⏳ Ready</span>
+      </div>
+      <div style="color: #aaa; font-size: 0.85rem;" id="live-card-subtitle">Match the Official Live Stream Price! • Options: [1] $15 | [2] $25 | [3] $35</div>
+      <div style="display: flex; gap: 15px; margin-top: 4px; font-weight: bold;">
+        <span style="color: #00e676;" id="live-card-winner">👑 MVP Winner: None</span>
+        <span style="color: #ffd740;" id="live-card-participants">👥 Answers: 0</span>
+      </div>
+    </div>
+
+    <!-- Custom Card Creator Collapsible -->
+    <details style="margin-top: 4px; border: 1px dashed #3a3a6e; border-radius: 8px; padding: 10px 14px; background: rgba(0,0,0,0.25);">
+      <summary style="cursor: pointer; color: #00e5ff; font-weight: bold; font-size: 0.92rem;">✏️ Create Custom Question / Product Card (Click to expand)</summary>
+      <div style="margin-top: 10px; display: flex; flex-direction: column; gap: 8px;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <input type="text" id="cust-title" placeholder="Product / Card Title" value="📱 iPhone 15 Pro Max" style="padding: 8px 12px; border: 1px solid #2a2a4e; border-radius: 6px; background: #14162b; color: #fff;" />
+          <input type="text" id="cust-subtitle" placeholder="Question / Subtitle" value="Match the Live Stream Flash Discount!" style="padding: 8px 12px; border: 1px solid #2a2a4e; border-radius: 6px; background: #14162b; color: #fff;" />
+          <input type="text" id="cust-opt1" placeholder="Option 1" value="$799 USD" style="padding: 8px 12px; border: 1px solid #2a2a4e; border-radius: 6px; background: #14162b; color: #fff;" />
+          <input type="text" id="cust-opt2" placeholder="Option 2" value="$899 USD (Official)" style="padding: 8px 12px; border: 1px solid #2a2a4e; border-radius: 6px; background: #14162b; color: #fff;" />
+          <input type="text" id="cust-opt3" placeholder="Option 3" value="$999 USD" style="padding: 8px 12px; border: 1px solid #2a2a4e; border-radius: 6px; background: #14162b; color: #fff;" />
+          <div style="display: flex; gap: 6px;">
+            <select id="cust-correct" style="flex: 1; padding: 8px 10px; border: 1px solid #2a2a4e; border-radius: 6px; background: #14162b; color: #fff;">
+              <option value="1">Correct: [1]</option>
+              <option value="2" selected>Correct: [2]</option>
+              <option value="3">Correct: [3]</option>
+            </select>
+            <select id="cust-duration" style="flex: 1; padding: 8px 10px; border: 1px solid #2a2a4e; border-radius: 6px; background: #14162b; color: #fff;">
+              <option value="10">10 Seconds</option>
+              <option value="15" selected>15 Seconds</option>
+              <option value="20">20 Seconds</option>
+              <option value="30">30 Seconds</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn-flash-start" style="padding: 10px 16px; margin-top: 4px;" onclick="startCustomFlashRound()">🚀 Launch Custom Round Now</button>
+      </div>
+    </details>
   </div>
 </div>
 
@@ -357,9 +506,12 @@
     const username = document.getElementById('creator-input').value.trim().replace('@','');
     const sessionId = document.getElementById('session-input').value.trim();
     if (!username) return alert('Enter a TikTok username');
-    if (!sessionId) return alert('Enter your TikTok sessionid cookie');
-    setStatus('Connecting...', '');
-    const r = await fetch('/api/connect', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({username, sessionId}) });
+    setStatus('Connecting to @' + username + '...', '');
+    const r = await fetch('/api/connect', { 
+      method:'POST', 
+      headers:{'Content-Type':'application/json'}, 
+      body: JSON.stringify({ username, sessionId: sessionId || null }) 
+    });
     const data = await r.json();
     if (!r.ok) { setStatus('Error: ' + data.error, 'error'); return; }
   }
@@ -458,6 +610,138 @@
     document.getElementById('btn-start').disabled = false;
     document.getElementById('btn-stop').disabled = true;
   });
+
+  // ---- Flash & Match State & Logic ----
+  let flashPresets = [];
+  let currentPresetIndex = 0;
+
+  async function loadFlashPresets() {
+    try {
+      const res = await fetch('/api/flash/presets');
+      flashPresets = await res.json();
+      updateFlashLiveCardPreview();
+    } catch(e) {}
+  }
+
+  function onPresetSelected() {
+    currentPresetIndex = parseInt(document.getElementById('flash-preset-select').value) || 0;
+    updateFlashLiveCardPreview();
+  }
+
+  function updateFlashLiveCardPreview() {
+    const preset = flashPresets[currentPresetIndex];
+    if (!preset) return;
+    document.getElementById('live-card-title').textContent = `Card: ${preset.title}`;
+    const optsText = preset.options.map(o => `[${o.id}] ${o.text}`).join(' | ');
+    document.getElementById('live-card-subtitle').textContent = `${preset.subtitle} • Options: ${optsText}`;
+  }
+
+  async function startFlashRound() {
+    const preset = flashPresets[currentPresetIndex] || null;
+    const res = await fetch('/api/flash/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ config: preset })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      document.getElementById('btn-flash-start').disabled = true;
+      document.getElementById('btn-flash-stop').disabled = false;
+      addFeed(`⚡ Flash Round Started: ${preset?.title || 'Custom'}`, 'flash');
+    }
+  }
+
+  async function startCustomFlashRound() {
+    const title = document.getElementById('cust-title').value.trim() || 'Custom Round';
+    const subtitle = document.getElementById('cust-subtitle').value.trim() || 'Type 1, 2, or 3!';
+    const opt1 = document.getElementById('cust-opt1').value.trim() || 'Option 1';
+    const opt2 = document.getElementById('cust-opt2').value.trim() || 'Option 2';
+    const opt3 = document.getElementById('cust-opt3').value.trim() || 'Option 3';
+    const correct = document.getElementById('cust-correct').value;
+    const duration = parseInt(document.getElementById('cust-duration').value) || 15;
+
+    const customConfig = {
+      id: `custom_${Date.now()}`,
+      title,
+      subtitle,
+      image: '🎁',
+      options: [
+        { id: '1', text: opt1 },
+        { id: '2', text: opt2 },
+        { id: '3', text: opt3 }
+      ],
+      correctOption: correct,
+      durationSeconds: duration
+    };
+
+    const res = await fetch('/api/flash/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ config: customConfig })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      document.getElementById('btn-flash-start').disabled = true;
+      document.getElementById('btn-flash-stop').disabled = false;
+      addFeed(`🚀 Custom Round Launched: ${title}`, 'flash');
+    }
+  }
+
+  async function stopFlashRound() {
+    const res = await fetch('/api/flash/end', { method: 'POST' });
+    const data = await res.json();
+    if (data.ok) {
+      document.getElementById('btn-flash-start').disabled = false;
+      document.getElementById('btn-flash-stop').disabled = true;
+      addFeed(`🏁 Flash Round Ended`, 'flash');
+    }
+  }
+
+  async function simulateChatTraffic() {
+    addFeed(`🎲 Simulating chat matches...`, 'flash');
+    await fetch('/api/flash/simulate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ count: 6 })
+    });
+  }
+
+  // Flash Socket Listeners
+  socket.on('flash:round_started', (state) => {
+    document.getElementById('flash-badge-status').textContent = 'LIVE ROUND';
+    document.getElementById('flash-badge-status').className = 'flash-status-badge active';
+    document.getElementById('btn-flash-start').disabled = true;
+    document.getElementById('btn-flash-stop').disabled = false;
+    document.getElementById('live-card-title').textContent = `Card: ${state.title}`;
+    document.getElementById('live-card-timer').textContent = `⏳ ${state.timeLeft}s remaining`;
+    document.getElementById('live-card-winner').textContent = `👑 MVP Winner: Searching...`;
+    document.getElementById('live-card-participants').textContent = `👥 Answers: 0`;
+  });
+
+  socket.on('flash:tick', ({ timeLeft, totalParticipants }) => {
+    document.getElementById('live-card-timer').textContent = `⏳ ${timeLeft}s remaining`;
+    document.getElementById('live-card-participants').textContent = `👥 Answers: ${totalParticipants}`;
+  });
+
+  socket.on('flash:first_match', ({ nickname, bonusXp, option }) => {
+    document.getElementById('live-card-winner').textContent = `👑 MVP: ${nickname} (Option ${option} +${bonusXp} XP)`;
+    addFeed(`🏆 FIRST MATCH! ${nickname} guessed [${option}] (+${bonusXp} XP)`, 'flash');
+  });
+
+  socket.on('flash:correct_match', ({ nickname, earnedXp, option }) => {
+    addFeed(`✨ ${nickname} MATCHED [${option}] (+${earnedXp} XP)`, 'flash');
+  });
+
+  socket.on('flash:round_ended', (finalState) => {
+    document.getElementById('flash-badge-status').textContent = 'ENDED';
+    document.getElementById('flash-badge-status').className = 'flash-status-badge';
+    document.getElementById('btn-flash-start').disabled = false;
+    document.getElementById('btn-flash-stop').disabled = true;
+    document.getElementById('live-card-timer').textContent = `🏁 Ended`;
+    addFeed(`🏁 Round Ended! Correct: [${finalState.correctOption}] | Winner: ${finalState.firstWinner?.nickname || 'None'}`, 'flash');
+  });
+
+  loadFlashPresets();
 </script>
 </body>
 </html>

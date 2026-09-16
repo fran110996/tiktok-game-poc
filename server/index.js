@@ -19,6 +19,7 @@ const cors = require('cors');
 const path = require('path');
 
 const TikTokConnector = require('./tiktokConnector');
+const MockConnector = require('./mockConnector');
 const GameEngine = require('./gameEngine');
 const db = require('./database');
 
@@ -117,12 +118,44 @@ app.get('/api/teams', async (req, res) => {
   res.json(scores);
 });
 
+// -------------------------------------------------------
+// Flash & Match Endpoints
+// -------------------------------------------------------
+// Get Flash Presets
+app.get('/api/flash/presets', (req, res) => {
+  res.json(game.getFlashPresets());
+});
+
+// Get Current Flash State
+app.get('/api/flash/state', (req, res) => {
+  res.json(game.getFlashState());
+});
+
+// Start Flash Round
+app.post('/api/flash/start', (req, res) => {
+  const state = game.startFlashRound(req.body?.config || null);
+  res.json({ ok: true, state });
+});
+
+// End Flash Round
+app.post('/api/flash/end', (req, res) => {
+  const state = game.endFlashRound();
+  res.json({ ok: true, state });
+});
+
+// Simulate Live Chat Matches (for video demo recording)
+app.post('/api/flash/simulate', async (req, res) => {
+  const count = req.body?.count || 6;
+  await game.simulateFlashChat(count);
+  res.json({ ok: true, message: `Simulating ${count} chat matches` });
+});
+
 // Serve dashboard
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/index.html'));
 });
 
-// Serve OBS overlay (combined — legacy)
+// Serve OBS overlay (combined)
 app.get('/overlay', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/overlay.html'));
 });
@@ -137,11 +170,24 @@ app.get('/overlay/leaderboard', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/overlay-leaderboard.html'));
 });
 
+// Serve Flash & Match overlay only
+app.get('/overlay/flash', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/overlay-flashmatch.html'));
+});
+
 // -------------------------------------------------------
-// Socket.io connection
+// Socket.io connection & Multi-Streamer Room Routing
 // -------------------------------------------------------
 io.on('connection', (socket) => {
   console.log('[Server] Client connected:', socket.id);
+
+  // Support independent rooms for multiple streamers
+  socket.on('room:join', ({ creator }) => {
+    const room = creator ? creator.toLowerCase().trim() : 'global';
+    socket.join(room);
+    console.log(`[Socket] Client ${socket.id} joined streamer room: ${room}`);
+  });
+
   socket.on('disconnect', () => {
     console.log('[Server] Client disconnected:', socket.id);
   });

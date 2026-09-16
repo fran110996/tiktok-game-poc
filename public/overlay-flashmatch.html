@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Flash & Match — TikTok LIVE Mobile Overlay</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      background: transparent !important;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      color: #fff;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: clamp(6px, 1.5vh, 16px) clamp(6px, 2vw, 16px);
+    }
+
+    /* TOP BAR: ULTRA-RESPONSIVE LEADERBOARD PILL (PINNED TOP) */
+    #top-bar {
+      position: fixed;
+      top: clamp(8px, 2vh, 20px);
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      justify-content: center;
+      width: 100%;
+      padding: 0 clamp(6px, 2vw, 16px);
+      z-index: 20;
+    }
+
+    .top-leaderboard-pill {
+      width: 100%;
+      max-width: 380px;
+      background: rgba(10, 12, 28, 0.95);
+      border: 1.5px solid rgba(0, 229, 255, 0.4);
+      border-radius: 999px;
+      padding: 4px 8px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 4px 16px rgba(0, 229, 255, 0.2);
+      overflow: hidden;
+    }
+
+    .lb-title {
+      background: linear-gradient(135deg, #00e5ff, #7928ca);
+      color: #fff;
+      font-size: 0.65rem;
+      font-weight: 900;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      padding: 2px 6px;
+      border-radius: 999px;
+      flex-shrink: 0;
+    }
+
+    .top-players-scroll {
+      display: flex;
+      flex: 1;
+      align-items: center;
+      justify-content: space-around;
+      gap: 2px;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .player-tag {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+
+    .player-tag .p-rank {
+      font-size: 0.72rem;
+      flex-shrink: 0;
+    }
+
+    .player-tag .p-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: clamp(28px, 12vw, 65px);
+    }
+
+    .player-tag .xp {
+      color: #ffd740;
+      font-weight: 800;
+      font-size: 0.64rem;
+      flex-shrink: 0;
+    }
+
+    /* CENTER: FLASH & MATCH CARD (LOCKED FIXED CENTER - ZERO VERTICAL SHIFT) */
+    #flash-container {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    .flash-card, .standby-card {
+      pointer-events: auto;
+    }
+
+    .flash-card {
+      width: 92%;
+      max-width: 360px;
+      background: radial-gradient(circle at 50% 0%, rgba(26, 31, 60, 0.98), rgba(10, 12, 26, 0.99));
+      border: 2px solid rgba(0, 229, 255, 0.5);
+      border-radius: 20px;
+      padding: 14px 12px;
+      text-align: center;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 0 30px rgba(0, 229, 255, 0.25), inset 0 0 12px rgba(0, 229, 255, 0.1);
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.25s ease, opacity 0.25s ease;
+    }
+
+    /* NEON BADGE */
+    .flash-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: linear-gradient(90deg, #ff007f, #7928ca);
+      color: #fff;
+      font-size: 0.68rem;
+      font-weight: 900;
+      letter-spacing: 0.8px;
+      padding: 3px 9px;
+      border-radius: 999px;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+      box-shadow: 0 0 12px rgba(255, 0, 127, 0.5);
+      animation: pulseGlow 1.8s infinite;
+    }
+
+    @keyframes pulseGlow {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 12px rgba(255, 0, 127, 0.5); }
+      50% { transform: scale(1.03); box-shadow: 0 0 20px rgba(255, 0, 127, 0.8); }
+    }
+
+    .flash-icon {
+      font-size: 2.4rem;
+      margin-bottom: 2px;
+      filter: drop-shadow(0 0 8px rgba(0, 229, 255, 0.6));
+    }
+
+    .flash-title {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 2px;
+      line-height: 1.2;
+    }
+
+    .flash-subtitle {
+      font-size: 0.78rem;
+      color: #00e5ff;
+      font-weight: 600;
+      margin-bottom: 8px;
+      line-height: 1.2;
+    }
+
+    /* COUNTDOWN BAR */
+    .timer-container {
+      width: 100%;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 999px;
+      margin-bottom: 8px;
+      overflow: hidden;
+      position: relative;
+    }
+    .timer-bar {
+      height: 100%;
+      width: 100%;
+      background: linear-gradient(90deg, #00e5ff, #00e676);
+      transition: width 0.3s linear, background 0.3s;
+      box-shadow: 0 0 8px #00e5ff;
+    }
+    .timer-bar.urgent {
+      background: linear-gradient(90deg, #ff9100, #ff1744);
+      box-shadow: 0 0 10px #ff1744;
+    }
+
+    .timer-text {
+      font-size: 0.72rem;
+      font-weight: 800;
+      color: #ffd740;
+      margin-top: -4px;
+      margin-bottom: 8px;
+    }
+
+    /* OPTIONS GRID */
+    .options-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      width: 100%;
+    }
+
+    .option-btn {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1.5px solid rgba(255, 255, 255, 0.15);
+      border-radius: 10px;
+      padding: 7px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: all 0.25s ease;
+    }
+    .option-key {
+      background: #00e5ff;
+      color: #0d0d1a;
+      font-size: 0.82rem;
+      font-weight: 900;
+      width: 22px;
+      height: 22px;
+      border-radius: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 6px rgba(0, 229, 255, 0.6);
+      flex-shrink: 0;
+    }
+    .option-label {
+      font-size: 0.84rem;
+      font-weight: 700;
+      color: #fff;
+      flex: 1;
+      text-align: left;
+      margin-left: 8px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .option-votes {
+      font-size: 0.68rem;
+      font-weight: 800;
+      color: #bbb;
+      background: rgba(0, 0, 0, 0.4);
+      padding: 2px 5px;
+      border-radius: 5px;
+      flex-shrink: 0;
+    }
+
+    /* CORRECT REVEAL */
+    .option-btn.correct-reveal {
+      border-color: #00e676 !important;
+      background: rgba(0, 230, 118, 0.25) !important;
+      box-shadow: 0 0 16px rgba(0, 230, 118, 0.6) !important;
+      transform: scale(1.02);
+    }
+    .option-btn.correct-reveal .option-key {
+      background: #00e676;
+    }
+
+    /* IDLE STANDBY CARD */
+    .standby-card {
+      width: 88%;
+      max-width: 320px;
+      background: rgba(10, 12, 28, 0.94);
+      border: 1.5px dashed rgba(0, 229, 255, 0.35);
+      border-radius: 18px;
+      padding: 16px 14px;
+      text-align: center;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+      transition: all 0.25s ease;
+    }
+    .standby-card h3 {
+      font-size: 1.05rem;
+      color: #00e5ff;
+      letter-spacing: 1px;
+      margin-bottom: 4px;
+    }
+    .standby-card p {
+      font-size: 0.75rem;
+      color: #888;
+    }
+
+    /* CELEBRATION MODAL (SLEEK TOP/CENTER BANNER - NEVER BLOCKS CARD) */
+    #celebration-overlay {
+      position: fixed;
+      top: clamp(48px, 8vh, 72px);
+      left: 50%;
+      transform: translateX(-50%) translateY(-15px) scale(0.95);
+      width: 90%;
+      max-width: 340px;
+      background: linear-gradient(135deg, rgba(255, 0, 127, 0.95), rgba(121, 40, 202, 0.95));
+      border: 1.5px solid #ffd740;
+      border-radius: 14px;
+      padding: 8px 12px;
+      text-align: center;
+      color: #fff;
+      box-shadow: 0 4px 20px rgba(255, 215, 64, 0.4);
+      backdrop-filter: blur(12px);
+      z-index: 100;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    #celebration-overlay.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0) scale(1);
+    }
+    #celebration-overlay .celeb-badge {
+      font-size: 0.68rem;
+      font-weight: 900;
+      color: #ffd740;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+    #celebration-overlay .celeb-name {
+      font-size: 1.05rem;
+      font-weight: 900;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    #celebration-overlay .celeb-xp {
+      font-size: 0.75rem;
+      font-weight: 800;
+      color: #ffd740;
+      margin-top: 1px;
+    }
+
+    /* BOTTOM TOASTS (PINNED BOTTOM OVERLAY - ZERO FLOW DISPLACEMENT) */
+    #toasts {
+      position: fixed;
+      bottom: clamp(10px, 2.5vh, 24px);
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column-reverse;
+      gap: 5px;
+      width: 90%;
+      max-width: 330px;
+      pointer-events: none;
+      z-index: 50;
+      margin: 0;
+    }
+    .toast {
+      background: rgba(10, 12, 28, 0.94);
+      border-left: 3px solid #00e5ff;
+      border-radius: 8px;
+      padding: 5px 10px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      animation: slideIn 0.3s ease;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .toast.match { border-left-color: #00e676; color: #69f0ae; }
+    .toast.first { border-left-color: #ffd740; color: #ffd740; }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* MEDIA QUERIES FOR ULTRA-SMALL MOBILE (<= 340px) */
+    @media (max-width: 340px) {
+      .player-tag:nth-child(3) { display: none; }
+      .flash-card { padding: 10px 8px; }
+      .flash-title { font-size: 0.95rem; }
+      .option-btn { padding: 5px 8px; }
+    }
+
+    /* MEDIA QUERIES FOR FULL OBS VERTICAL RESOLUTION (>= 600px e.g. 720x1280 or 1080x1920) */
+    @media (min-width: 600px) {
+      .top-leaderboard-pill { max-width: 620px; padding: 8px 16px; gap: 10px; }
+      .lb-title { font-size: 1rem; padding: 4px 12px; }
+      .player-tag { font-size: 1rem; gap: 6px; }
+      .player-tag .p-name { max-width: 120px; }
+      .player-tag .xp { font-size: 0.95rem; }
+      .flash-card { max-width: 540px; padding: 24px 20px; border-radius: 26px; }
+      .flash-badge { font-size: 1rem; padding: 5px 14px; }
+      .flash-icon { font-size: 4rem; }
+      .flash-title { font-size: 1.8rem; }
+      .flash-subtitle { font-size: 1.15rem; }
+      .timer-container { height: 9px; }
+      .timer-text { font-size: 1rem; }
+      .option-btn { padding: 12px 16px; border-radius: 14px; }
+      .option-key { width: 34px; height: 34px; font-size: 1.15rem; }
+      .option-label { font-size: 1.15rem; margin-left: 12px; }
+      .option-votes { font-size: 0.95rem; padding: 3px 8px; }
+      .standby-card { max-width: 500px; padding: 24px 20px; border-radius: 22px; }
+      .standby-card h3 { font-size: 1.6rem; }
+      .standby-card p { font-size: 1.1rem; }
+      #celebration-overlay { max-width: 480px; padding: 14px 18px; top: 90px; }
+      #celebration-overlay .celeb-badge { font-size: 1rem; }
+      #celebration-overlay .celeb-name { font-size: 1.6rem; }
+      #celebration-overlay .celeb-xp { font-size: 1.15rem; }
+      #toasts { max-width: 520px; }
+      .toast { font-size: 1rem; padding: 8px 14px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- TOP BAR: LEADERBOARD SUMMARY -->
+<div id="top-bar">
+  <div class="top-leaderboard-pill">
+    <div class="lb-title">🏆 TOP</div>
+    <div class="top-players-scroll" id="top-players-container">
+      <span class="player-tag">Waiting for players...</span>
+    </div>
+  </div>
+</div>
+
+<!-- CENTER: FLASH & MATCH CARD -->
+<div id="flash-container">
+  <div class="standby-card" id="standby-box">
+    <h3>⚡ FLASH & MATCH</h3>
+    <p>Waiting for host to start next round...</p>
+  </div>
+
+  <div class="flash-card" id="flash-card-box" style="display: none;">
+    <div class="flash-badge">⚡ FLASH & MATCH ROUND</div>
+    <div class="flash-icon" id="fc-icon">🎁</div>
+    <div class="flash-title" id="fc-title">Round Title</div>
+    <div class="flash-subtitle" id="fc-subtitle">Round Subtitle</div>
+
+    <div class="timer-container">
+      <div class="timer-bar" id="flash-timer-bar" style="width: 100%;"></div>
+    </div>
+    <div class="timer-text" id="flash-timer-text">⏳ 15s remaining • Type 1, 2, or 3!</div>
+
+    <div class="options-grid" id="fc-options"></div>
+  </div>
+</div>
+
+<!-- CELEBRATION MODAL -->
+<div id="celebration-overlay">
+  <div class="celeb-badge">👑 FIRST MATCH MVP!</div>
+  <div class="celeb-name" id="celeb-player">@mimi</div>
+  <div class="celeb-xp" id="celeb-xp">+250 XP BONUS</div>
+</div>
+
+<!-- BOTTOM NOTIFICATIONS -->
+<div id="toasts"></div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  const socket = io();
+  let activeRound = null;
+  let lastLeaderboardJson = '';
+
+  // Extract Creator Room ID from query param (Multi-Streamer Isolation support)
+  const urlParams = new URLSearchParams(window.location.search);
+  const creatorRoom = (urlParams.get('creator') || 'global').toLowerCase().trim();
+
+  socket.on('connect', () => {
+    socket.emit('room:join', { creator: creatorRoom });
+  });
+
+  // Web Audio Synth for instant game SFX without external files
+  let audioCtx = null;
+  function getAudioContext() {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+    return audioCtx;
+  }
+
+  function playSound(type) {
+    try {
+      const ctx = getAudioContext();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      if (type === 'first') {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(523.25, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.3);
+        gain.gain.setValueAtTime(0.3, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.5);
+      } else if (type === 'correct') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(659.25, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(783.99, ctx.currentTime + 0.2);
+        gain.gain.setValueAtTime(0.25, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.35);
+      }
+    } catch(e) {}
+  }
+
+  function renderLeaderboard(data) {
+    if (!data || !Array.isArray(data)) return;
+    const top3 = data.slice(0, 3);
+    const json = JSON.stringify(top3);
+    if (json === lastLeaderboardJson) return; // Prevent unnecessary DOM destruction & flicker
+    lastLeaderboardJson = json;
+
+    const container = document.getElementById('top-players-container');
+    if (top3.length === 0) {
+      container.innerHTML = '<span class="player-tag">Waiting for players...</span>';
+      return;
+    }
+    // Render top 3 with strict width budgeting
+    const medals = ['🥇', '🥈', '🥉'];
+    container.innerHTML = top3.map((p, i) => {
+      const cleanName = (p.nickname || p.username || '').replace(/[^\w\s\u00C0-\u017F]/gi, '').trim() || p.username;
+      return `
+        <span class="player-tag">
+          <span class="p-rank">${medals[i] || '🎖️'}</span>
+          <span class="p-name">${cleanName}</span>
+          <span class="xp">${p.total_xp}</span>
+        </span>
+      `;
+    }).join('');
+  }
+
+  function showToast(text, type = '', duration = 3500) {
+    const toasts = document.getElementById('toasts');
+    const div = document.createElement('div');
+    div.className = `toast ${type}`;
+    div.textContent = text;
+    toasts.prepend(div);
+    if (toasts.children.length > 3) toasts.removeChild(toasts.lastChild);
+    setTimeout(() => div.remove(), duration);
+  }
+
+  function renderFlashCard(state) {
+    const standbyBox = document.getElementById('standby-box');
+    const cardBox = document.getElementById('flash-card-box');
+
+    if (!state || state.status === 'IDLE') {
+      standbyBox.style.display = 'block';
+      cardBox.style.display = 'none';
+      return;
+    }
+
+    standbyBox.style.display = 'none';
+    cardBox.style.display = 'block';
+
+    document.getElementById('fc-icon').textContent = state.image || '🎁';
+    document.getElementById('fc-title').textContent = state.title || 'Flash Round';
+    document.getElementById('fc-subtitle').textContent = state.subtitle || '';
+
+    const pct = ((state.timeLeft || state.totalDuration) / state.totalDuration) * 100;
+    const isUrgent = (state.timeLeft <= 4);
+
+    const bar = document.getElementById('flash-timer-bar');
+    const text = document.getElementById('flash-timer-text');
+    if (bar) {
+      bar.style.width = pct + '%';
+      if (isUrgent) bar.classList.add('urgent');
+      else bar.classList.remove('urgent');
+    }
+    if (text) {
+      text.textContent = `⏳ ${state.timeLeft || 0}s remaining • Type 1, 2, or 3!`;
+    }
+
+    const optsContainer = document.getElementById('fc-options');
+    optsContainer.innerHTML = (state.options || []).map(opt => `
+      <div class="option-btn ${state.status === 'ENDED' && opt.id === state.correctOption ? 'correct-reveal' : ''}" id="opt-${opt.id}">
+        <div class="option-key">${opt.id}</div>
+        <div class="option-label">${opt.text}</div>
+        <div class="option-votes" id="votes-${opt.id}">${(state.stats && state.stats[opt.id]) || 0} votes</div>
+      </div>
+    `).join('');
+  }
+
+  function triggerCelebration(player, xp) {
+    const overlay = document.getElementById('celebration-overlay');
+    document.getElementById('celeb-player').textContent = player;
+    document.getElementById('celeb-xp').textContent = `+${xp} XP MVP BONUS!`;
+    overlay.classList.add('show');
+    playSound('first');
+    setTimeout(() => {
+      overlay.classList.remove('show');
+    }, 4000);
+  }
+
+  // ---- Socket Events ----
+  socket.on('game:state', ({ leaderboard, flashState }) => {
+    renderLeaderboard(leaderboard);
+    if (!activeRound) {
+      renderFlashCard(flashState);
+    }
+  });
+
+  socket.on('flash:round_started', (state) => {
+    activeRound = state;
+    renderFlashCard(state);
+    showToast(`⚡ New Round: ${state.title}! Type 1, 2 or 3!`, 'first');
+  });
+
+  socket.on('flash:tick', ({ timeLeft, totalDuration, stats, totalParticipants }) => {
+    if (!activeRound) return;
+    activeRound.timeLeft = timeLeft;
+    activeRound.stats = stats;
+
+    const bar = document.getElementById('flash-timer-bar');
+    const text = document.getElementById('flash-timer-text');
+    if (bar) {
+      const pct = (timeLeft / totalDuration) * 100;
+      bar.style.width = pct + '%';
+      if (timeLeft <= 4) bar.classList.add('urgent');
+      else bar.classList.remove('urgent');
+    }
+    if (text) {
+      text.textContent = `⏳ ${timeLeft}s remaining • ${totalParticipants} answers!`;
+    }
+
+    if (stats) {
+      for (const [optId, count] of Object.entries(stats)) {
+        const voteEl = document.getElementById(`votes-${optId}`);
+        if (voteEl) voteEl.textContent = `${count} votes`;
+      }
+    }
+  });
+
+  socket.on('flash:first_match', ({ nickname, bonusXp, option }) => {
+    triggerCelebration(nickname, bonusXp);
+    showToast(`👑 ${nickname} got FIRST MATCH on [${option}]! (+${bonusXp} XP)`, 'first', 4500);
+  });
+
+  socket.on('flash:correct_match', ({ nickname, earnedXp, option }) => {
+    playSound('correct');
+    showToast(`✨ ${nickname} MATCHED [${option}]! (+${earnedXp} XP)`, 'match');
+  });
+
+  socket.on('flash:round_ended', (finalState) => {
+    activeRound = finalState;
+    renderFlashCard(finalState);
+    showToast(`🏁 Round finished! Correct was [${finalState.correctOption}]!`, 'first', 5000);
+  });
+
+  socket.on('flash:idle', () => {
+    activeRound = null;
+    renderFlashCard({ status: 'IDLE' });
+  });
+
+  // Initial load
+  fetch('/api/leaderboard').then(r => r.json()).then(renderLeaderboard).catch(() => {});
+  fetch('/api/flash/state').then(r => r.json()).then(renderFlashCard).catch(() => {});
+</script>
+</body>
+</html>
