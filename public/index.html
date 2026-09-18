@@ -398,7 +398,15 @@
         <option value="2">👟 Preset 3: Future Runner Edition (2025 Match)</option>
         <option value="3">⚡ Preset 4: Speed Math 18 + 17 (35 Match)</option>
       </select>
-      <button class="btn-flash-start" id="btn-flash-start" onclick="startFlashRound()">▶ Start Flash Round (15s)</button>
+      <select id="flash-duration-select" style="min-width: 140px; padding: 10px 12px; border-radius: 8px; background: #0d0d1a; color: #00e5ff; border: 1.5px solid #00e5ff; font-weight: bold; cursor: pointer;">
+        <option value="15">⏱️ 15 Seconds</option>
+        <option value="30">⏱️ 30 Seconds</option>
+        <option value="60" selected>⏱️ 1 Minute</option>
+        <option value="120">⏱️ 2 Minutes</option>
+        <option value="180">⏱️ 3 Minutes</option>
+        <option value="300">⏱️ 5 Minutes</option>
+      </select>
+      <button class="btn-flash-start" id="btn-flash-start" onclick="startFlashRound()">▶ Start Round</button>
       <button class="btn-flash-stop" id="btn-flash-stop" onclick="stopFlashRound()" disabled>⏹ End Round</button>
       <button class="btn-flash-sim" onclick="simulateChatTraffic()">🎲 Simulate Chat Matches</button>
     </div>
@@ -433,10 +441,12 @@
               <option value="3">Correct: [3]</option>
             </select>
             <select id="cust-duration" style="flex: 1; padding: 8px 10px; border: 1px solid #2a2a4e; border-radius: 6px; background: #14162b; color: #fff;">
-              <option value="10">10 Seconds</option>
-              <option value="15" selected>15 Seconds</option>
-              <option value="20">20 Seconds</option>
+              <option value="15">15 Seconds</option>
               <option value="30">30 Seconds</option>
+              <option value="60" selected>1 Minute</option>
+              <option value="120">2 Minutes</option>
+              <option value="180">3 Minutes</option>
+              <option value="300">5 Minutes</option>
             </select>
           </div>
         </div>
@@ -636,18 +646,36 @@
     document.getElementById('live-card-subtitle').textContent = `${preset.subtitle} • Options: ${optsText}`;
   }
 
+  function formatTimer(seconds) {
+    if (seconds >= 60) {
+      const m = Math.floor(seconds / 60);
+      const s = seconds % 60;
+      return `${m}m ${s < 10 ? '0' : ''}${s}s`;
+    }
+    return `${seconds}s`;
+  }
+
   async function startFlashRound() {
-    const preset = flashPresets[currentPresetIndex] || null;
+    const basePreset = flashPresets[currentPresetIndex] || {
+      id: 'round_default',
+      title: '⚡ Live Stream Flash Match',
+      subtitle: 'Match the correct option (1, 2, or 3) in chat!',
+      options: [{ id:'1', text:'Option 1' }, { id:'2', text:'Option 2' }, { id:'3', text:'Option 3' }],
+      correctOption: '2'
+    };
+    const duration = parseInt(document.getElementById('flash-duration-select')?.value) || 60;
+    const config = { ...basePreset, durationSeconds: duration };
+
     const res = await fetch('/api/flash/start', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ config: preset })
+      body: JSON.stringify({ config })
     });
     const data = await res.json();
     if (data.ok) {
       document.getElementById('btn-flash-start').disabled = true;
       document.getElementById('btn-flash-stop').disabled = false;
-      addFeed(`⚡ Flash Round Started: ${preset?.title || 'Custom'}`, 'flash');
+      addFeed(`⚡ Flash Round Started (${formatTimer(duration)}): ${config.title}`, 'flash');
     }
   }
 
@@ -713,13 +741,13 @@
     document.getElementById('btn-flash-start').disabled = true;
     document.getElementById('btn-flash-stop').disabled = false;
     document.getElementById('live-card-title').textContent = `Card: ${state.title}`;
-    document.getElementById('live-card-timer').textContent = `⏳ ${state.timeLeft}s remaining`;
+    document.getElementById('live-card-timer').textContent = `⏳ ${formatTimer(state.timeLeft)} remaining`;
     document.getElementById('live-card-winner').textContent = `👑 MVP Winner: Searching...`;
     document.getElementById('live-card-participants').textContent = `👥 Answers: 0`;
   });
 
   socket.on('flash:tick', ({ timeLeft, totalParticipants }) => {
-    document.getElementById('live-card-timer').textContent = `⏳ ${timeLeft}s remaining`;
+    document.getElementById('live-card-timer').textContent = `⏳ ${formatTimer(timeLeft)} remaining`;
     document.getElementById('live-card-participants').textContent = `👥 Answers: ${totalParticipants}`;
   });
 

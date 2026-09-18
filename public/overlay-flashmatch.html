@@ -571,8 +571,17 @@
     document.getElementById('fc-title').textContent = state.title || 'Flash Round';
     document.getElementById('fc-subtitle').textContent = state.subtitle || '';
 
+    function formatTimer(seconds) {
+      if (seconds >= 60) {
+        const m = Math.floor(seconds / 60);
+        const s = seconds % 60;
+        return `${m}m ${s < 10 ? '0' : ''}${s}s`;
+      }
+      return `${seconds}s`;
+    }
+
     const pct = ((state.timeLeft || state.totalDuration) / state.totalDuration) * 100;
-    const isUrgent = (state.timeLeft <= 4);
+    const isUrgent = (state.timeLeft <= 5);
 
     const bar = document.getElementById('flash-timer-bar');
     const text = document.getElementById('flash-timer-text');
@@ -582,7 +591,7 @@
       else bar.classList.remove('urgent');
     }
     if (text) {
-      text.textContent = `⏳ ${state.timeLeft || 0}s remaining • Type 1, 2, or 3!`;
+      text.textContent = `⏳ ${formatTimer(state.timeLeft || 0)} remaining • Type 1, 2, or 3!`;
     }
 
     const optsContainer = document.getElementById('fc-options');
@@ -634,7 +643,15 @@
       else bar.classList.remove('urgent');
     }
     if (text) {
-      text.textContent = `⏳ ${timeLeft}s remaining • ${totalParticipants} answers!`;
+      function formatTimer(seconds) {
+        if (seconds >= 60) {
+          const m = Math.floor(seconds / 60);
+          const s = seconds % 60;
+          return `${m}m ${s < 10 ? '0' : ''}${s}s`;
+        }
+        return `${seconds}s`;
+      }
+      text.textContent = `⏳ ${formatTimer(timeLeft)} remaining • ${totalParticipants} answers!`;
     }
 
     if (stats) {
