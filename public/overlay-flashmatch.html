@@ -298,6 +298,151 @@
       color: #888;
     }
 
+    /* GUESS THE WEIGHT CARD — MOBILE 9:16 OPTIMIZED */
+    .guess-card {
+      width: 92%;
+      max-width: 360px;
+      background: radial-gradient(circle at 50% 0%, rgba(38, 22, 10, 0.98), rgba(16, 12, 10, 0.99));
+      border: 2px solid rgba(255, 145, 0, 0.5);
+      border-radius: 20px;
+      padding: 16px 14px;
+      text-align: center;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 0 30px rgba(255, 145, 0, 0.25), inset 0 0 12px rgba(255, 145, 0, 0.1);
+      position: relative;
+      overflow: hidden;
+      pointer-events: auto;
+      transition: transform 0.25s ease, opacity 0.25s ease;
+    }
+
+    .guess-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: linear-gradient(90deg, #ff9100, #ff5722);
+      color: #fff;
+      font-size: 0.68rem;
+      font-weight: 900;
+      letter-spacing: 0.8px;
+      padding: 3px 9px;
+      border-radius: 999px;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+      box-shadow: 0 0 12px rgba(255, 145, 0, 0.5);
+      animation: pulseGlowGuess 1.8s infinite;
+    }
+
+    @keyframes pulseGlowGuess {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 12px rgba(255, 145, 0, 0.5); }
+      50% { transform: scale(1.03); box-shadow: 0 0 20px rgba(255, 145, 0, 0.8); }
+    }
+
+    .guess-icon {
+      font-size: 2.2rem;
+      margin-bottom: 2px;
+      filter: drop-shadow(0 0 8px rgba(255, 145, 0, 0.6));
+    }
+
+    .guess-title {
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 2px;
+      line-height: 1.25;
+    }
+
+    .guess-subtitle {
+      font-size: 0.78rem;
+      color: #ffb74d;
+      font-weight: 600;
+      margin-bottom: 8px;
+      line-height: 1.2;
+    }
+
+    .guess-guesses-pill {
+      background: rgba(255, 145, 0, 0.12);
+      border: 1.5px solid rgba(255, 145, 0, 0.35);
+      border-radius: 12px;
+      padding: 10px;
+      margin-top: 6px;
+      margin-bottom: 4px;
+    }
+
+    /* BLUR TO GUESS CARD — MOBILE 9:16 OPTIMIZED */
+    .blur-card {
+      width: 92%;
+      max-width: 360px;
+      background: radial-gradient(circle at 50% 0%, rgba(35, 15, 45, 0.98), rgba(14, 10, 22, 0.99));
+      border: 2px solid rgba(171, 71, 188, 0.5);
+      border-radius: 20px;
+      padding: 16px 14px;
+      text-align: center;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 0 30px rgba(171, 71, 188, 0.25), inset 0 0 12px rgba(171, 71, 188, 0.1);
+      position: relative;
+      overflow: hidden;
+      pointer-events: auto;
+      transition: transform 0.25s ease, opacity 0.25s ease;
+    }
+
+    .blur-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: linear-gradient(90deg, #ab47bc, #7b1fa2);
+      color: #fff;
+      font-size: 0.68rem;
+      font-weight: 900;
+      letter-spacing: 0.8px;
+      padding: 3px 9px;
+      border-radius: 999px;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+      box-shadow: 0 0 12px rgba(171, 71, 188, 0.5);
+      animation: pulseGlowBlur 1.8s infinite;
+    }
+
+    @keyframes pulseGlowBlur {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 12px rgba(171, 71, 188, 0.5); }
+      50% { transform: scale(1.03); box-shadow: 0 0 20px rgba(171, 71, 188, 0.8); }
+    }
+
+    .blur-title {
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 2px;
+      line-height: 1.25;
+    }
+
+    .blur-subtitle {
+      font-size: 0.78rem;
+      color: #ce93d8;
+      font-weight: 600;
+      margin-bottom: 8px;
+      line-height: 1.2;
+    }
+
+    .blur-image-frame {
+      width: 200px;
+      height: 200px;
+      margin: 8px auto 10px;
+      border-radius: 16px;
+      border: 2px solid rgba(171, 71, 188, 0.5);
+      background: #000;
+      overflow: hidden;
+      position: relative;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.6);
+    }
+
+    .blur-image-frame img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transition: filter 0.8s ease;
+    }
+
     /* CELEBRATION MODAL (SLEEK TOP/CENTER BANNER - NEVER BLOCKS CARD) */
     #celebration-overlay {
       position: fixed;
@@ -435,8 +580,8 @@
 <!-- CENTER: FLASH & MATCH CARD -->
 <div id="flash-container">
   <div class="standby-card" id="standby-box">
-    <h3>⚡ FLASH & MATCH</h3>
-    <p>Waiting for host to start next round...</p>
+    <h3>🎮 LIVE MINI-GAMES</h3>
+    <p>Waiting for host to launch next game...</p>
   </div>
 
   <div class="flash-card" id="flash-card-box" style="display: none;">
@@ -451,6 +596,56 @@
     <div class="timer-text" id="flash-timer-text">⏳ 15s remaining • Type 1, 2, or 3!</div>
 
     <div class="options-grid" id="fc-options"></div>
+  </div>
+
+  <!-- Guess the Weight Card -->
+  <div class="guess-card" id="guess-card-box" style="display: none;">
+    <div class="guess-badge">🎯 GUESS THE WEIGHT</div>
+    <div class="guess-icon">🎯</div>
+    <div class="guess-title" id="gc-title">How much does this bag weigh?</div>
+    <div class="guess-subtitle" id="gc-subtitle">Type your guess in chat! Closest number wins!</div>
+
+    <div class="timer-container">
+      <div class="timer-bar" id="guess-timer-bar" style="width: 100%; background: linear-gradient(90deg, #ff9100, #ffd740); box-shadow: 0 0 8px #ff9100;"></div>
+    </div>
+    <div class="timer-text" id="guess-timer-text" style="color: #ffb74d;">⏳ Type a number in chat!</div>
+
+    <div class="guess-guesses-pill">
+      <div id="gc-guesses" style="font-size: 1.6rem; font-weight: 900; color: #ffd740;">0 guesses</div>
+      <div id="gc-status-label" style="font-size: 0.72rem; color: #ffcc80; text-transform: uppercase; letter-spacing: 1px; margin-top: 2px;">Accepting guesses...</div>
+    </div>
+
+    <!-- Reveal section -->
+    <div id="gc-reveal" style="display: none; margin-top: 10px; padding: 12px; background: rgba(0, 230, 118, 0.15); border-radius: 12px; border: 1.5px solid rgba(0, 230, 118, 0.5); box-shadow: 0 0 16px rgba(0, 230, 118, 0.2);">
+      <div style="font-size: 0.72rem; color: #aaa; text-transform: uppercase; letter-spacing: 1px;">The Correct Answer Was</div>
+      <div id="gc-correct-answer" style="font-size: 2.4rem; font-weight: 900; color: #00e676; line-height: 1.1; margin: 4px 0;">???</div>
+      <div id="gc-winner-line" style="font-size: 0.95rem; font-weight: 700; color: #ffd740;">👑 Winner: ...</div>
+    </div>
+  </div>
+
+  <!-- Blur to Guess Card -->
+  <div class="blur-card" id="blur-card-box" style="display: none;">
+    <div class="blur-badge">🔍 BLUR TO GUESS</div>
+    <div class="blur-title" id="bc-title">What product is this?</div>
+    <div class="blur-subtitle" id="bc-subtitle">Look closely & type the product name in chat!</div>
+
+    <!-- Blurred image in square frame -->
+    <div class="blur-image-frame">
+      <img id="bc-image" src="" style="filter: blur(20px);" />
+      <div id="bc-blur-label" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 2.8rem; opacity: 0.6; pointer-events: none; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.8));">🔍</div>
+    </div>
+
+    <div class="timer-container">
+      <div class="timer-bar" id="blur-timer-bar" style="width: 100%; background: linear-gradient(90deg, #ab47bc, #e040fb); box-shadow: 0 0 8px #ab47bc;"></div>
+    </div>
+    <div class="timer-text" id="blur-timer-text" style="color: #ce93d8;">⏳ Getting clearer...</div>
+    <div id="bc-attempts" style="font-size: 0.78rem; font-weight: 700; color: #e1bee7; margin-top: -2px; margin-bottom: 4px;">0 attempts</div>
+
+    <!-- Winner reveal -->
+    <div id="bc-winner" style="display: none; margin-top: 10px; padding: 10px 12px; background: rgba(0, 230, 118, 0.15); border-radius: 12px; border: 1.5px solid rgba(0, 230, 118, 0.5); box-shadow: 0 0 16px rgba(0, 230, 118, 0.2);">
+      <div id="bc-winner-text" style="font-size: 1.1rem; font-weight: 900; color: #00e676;">🏆 Winner!</div>
+      <div id="bc-answer-text" style="font-size: 0.85rem; font-weight: 700; color: #ffd740; margin-top: 2px;">Answer: ...</div>
+    </div>
   </div>
 </div>
 
@@ -468,6 +663,8 @@
 <script>
   const socket = io();
   let activeRound = null;
+  let activeGuessRound = null;
+  let activeBlurRound = null;
   let lastLeaderboardJson = '';
 
   // Extract Creator Room ID from query param (Multi-Streamer Isolation support)
@@ -557,14 +754,21 @@
   function renderFlashCard(state) {
     const standbyBox = document.getElementById('standby-box');
     const cardBox = document.getElementById('flash-card-box');
+    const guessBox = document.getElementById('guess-card-box');
+    const blurBox = document.getElementById('blur-card-box');
 
     if (!state || state.status === 'IDLE') {
-      standbyBox.style.display = 'block';
       cardBox.style.display = 'none';
+      if (!activeGuessRound && !activeBlurRound) standbyBox.style.display = 'block';
       return;
     }
 
+    activeRound = state;
+    activeGuessRound = null;
+    activeBlurRound = null;
     standbyBox.style.display = 'none';
+    guessBox.style.display = 'none';
+    blurBox.style.display = 'none';
     cardBox.style.display = 'block';
 
     document.getElementById('fc-icon').textContent = state.image || '🎁';
@@ -615,15 +819,123 @@
     }, 4000);
   }
 
+  function renderGuessCard(state) {
+    const standbyBox = document.getElementById('standby-box');
+    const flashBox = document.getElementById('flash-card-box');
+    const blurBox = document.getElementById('blur-card-box');
+    const guessBox = document.getElementById('guess-card-box');
+
+    if (!state || state.status === 'IDLE') {
+      guessBox.style.display = 'none';
+      if (!activeRound && !activeBlurRound) standbyBox.style.display = 'block';
+      return;
+    }
+
+    activeGuessRound = state;
+    activeRound = null;
+    activeBlurRound = null;
+    standbyBox.style.display = 'none';
+    flashBox.style.display = 'none';
+    blurBox.style.display = 'none';
+    guessBox.style.display = 'block';
+
+    document.getElementById('gc-title').textContent = state.title || 'Guess the Weight!';
+    document.getElementById('gc-subtitle').textContent = state.subtitle || 'Type your guess!';
+    document.getElementById('gc-guesses').textContent = `${state.totalGuesses || 0} guesses`;
+    
+    if (state.status === 'LOCKED') {
+      document.getElementById('gc-status-label').textContent = '🔒 ANSWERS LOCKED!';
+      document.getElementById('gc-status-label').style.color = '#ffd740';
+      document.getElementById('guess-timer-text').textContent = '🔒 Locked — Reveal coming...';
+    } else if (state.status === 'REVEALED') {
+      document.getElementById('gc-reveal').style.display = 'block';
+      document.getElementById('gc-correct-answer').textContent = state.correctAnswer;
+      document.getElementById('gc-status-label').textContent = '🎯 REVEALED!';
+      document.getElementById('gc-status-label').style.color = '#00e676';
+      if (state.winner) {
+        document.getElementById('gc-winner-line').textContent = `👑 ${state.winner.nickname} guessed ${state.winner.guess}! +${state.winner.xpAwarded} XP`;
+      }
+    } else {
+      document.getElementById('gc-status-label').textContent = 'Accepting guesses...';
+      document.getElementById('gc-status-label').style.color = '#aaa';
+      document.getElementById('gc-reveal').style.display = 'none';
+    }
+  }
+
+  function renderBlurCard(state) {
+    const standbyBox = document.getElementById('standby-box');
+    const flashBox = document.getElementById('flash-card-box');
+    const guessBox = document.getElementById('guess-card-box');
+    const blurBox = document.getElementById('blur-card-box');
+
+    if (!state || state.status === 'IDLE') {
+      blurBox.style.display = 'none';
+      if (!activeRound && !activeGuessRound) standbyBox.style.display = 'block';
+      return;
+    }
+
+    activeBlurRound = state;
+    activeRound = null;
+    activeGuessRound = null;
+    standbyBox.style.display = 'none';
+    flashBox.style.display = 'none';
+    guessBox.style.display = 'none';
+    blurBox.style.display = 'block';
+
+    document.getElementById('bc-title').textContent = `🔍 ${state.title || 'What is this?'}`;
+    const img = document.getElementById('bc-image');
+    img.src = state.imageUrl || '';
+    img.style.filter = `blur(${state.blurLevel != null ? state.blurLevel : 20}px)`;
+    document.getElementById('bc-attempts').textContent = `${state.totalAttempts || 0} attempts`;
+
+    if ((state.status === 'WON' || state.status === 'ENDED') && (state.winner || state.answer)) {
+      img.style.filter = 'blur(0px)';
+      document.getElementById('bc-blur-label').style.display = 'none';
+      document.getElementById('bc-winner').style.display = 'block';
+      if (state.winner) {
+        document.getElementById('bc-winner-text').textContent = `🏆 ${state.winner.nickname} got it!`;
+        document.getElementById('bc-winner-text').style.color = '#00e676';
+        document.getElementById('bc-answer-text').textContent = `Answer: "${state.answer}"`;
+      } else {
+        document.getElementById('bc-winner-text').textContent = "Time's up!";
+        document.getElementById('bc-winner-text').style.color = '#ff9100';
+        document.getElementById('bc-answer-text').textContent = `The answer was: "${state.answer}"`;
+      }
+    } else {
+      document.getElementById('bc-winner').style.display = 'none';
+      document.getElementById('bc-blur-label').style.display = 'block';
+    }
+  }
+
   // ---- Socket Events ----
-  socket.on('game:state', ({ leaderboard, flashState }) => {
+  socket.on('game:state', ({ leaderboard, activeMode, flashState, guessState, blurState }) => {
     renderLeaderboard(leaderboard);
-    if (!activeRound) {
+    if (activeMode === 'blur') {
+      renderBlurCard(blurState);
+    } else if (activeMode === 'guess') {
+      renderGuessCard(guessState);
+    } else if (activeMode === 'flash') {
       renderFlashCard(flashState);
+    } else if (blurState && blurState.status !== 'IDLE') {
+      renderBlurCard(blurState);
+    } else if (guessState && guessState.status !== 'IDLE') {
+      renderGuessCard(guessState);
+    } else if (flashState && flashState.status !== 'IDLE') {
+      renderFlashCard(flashState);
+    } else {
+      activeRound = null;
+      activeGuessRound = null;
+      activeBlurRound = null;
+      document.getElementById('standby-box').style.display = 'block';
+      document.getElementById('flash-card-box').style.display = 'none';
+      document.getElementById('guess-card-box').style.display = 'none';
+      document.getElementById('blur-card-box').style.display = 'none';
     }
   });
 
   socket.on('flash:round_started', (state) => {
+    activeGuessRound = null;
+    activeBlurRound = null;
     activeRound = state;
     renderFlashCard(state);
     showToast(`⚡ New Round: ${state.title}! Type 1, 2 or 3!`, 'first');
@@ -680,12 +992,155 @@
 
   socket.on('flash:idle', () => {
     activeRound = null;
-    renderFlashCard({ status: 'IDLE' });
+    if (!activeGuessRound && !activeBlurRound) {
+      renderFlashCard({ status: 'IDLE' });
+    }
+  });
+
+  // ==== GUESS THE WEIGHT OVERLAY ====
+  socket.on('guess:round_started', (state) => {
+    activeRound = null;
+    activeBlurRound = null;
+    renderGuessCard(state);
+    document.getElementById('guess-timer-bar').style.width = '100%';
+    showToast(`🎯 ${state.title} — Type a number!`, 'first');
+  });
+
+  socket.on('guess:tick', ({ timeLeft, totalDuration, totalGuesses }) => {
+    if (!activeGuessRound) return;
+    const pct = (timeLeft / totalDuration) * 100;
+    document.getElementById('guess-timer-bar').style.width = pct + '%';
+    function formatTimer(seconds) {
+      if (seconds >= 60) {
+        const m = Math.floor(seconds / 60);
+        const s = seconds % 60;
+        return `${m}m ${s < 10 ? '0' : ''}${s}s`;
+      }
+      return `${seconds}s`;
+    }
+    document.getElementById('guess-timer-text').textContent = `⏳ ${formatTimer(timeLeft)} remaining`;
+    document.getElementById('gc-guesses').textContent = `${totalGuesses} guesses`;
+  });
+
+  socket.on('guess:new_guess', ({ nickname, totalGuesses }) => {
+    document.getElementById('gc-guesses').textContent = `${totalGuesses} guesses`;
+    showToast(`🎯 ${nickname} submitted a guess!`, 'match');
+  });
+
+  socket.on('guess:locked', () => {
+    if (activeGuessRound) activeGuessRound.status = 'LOCKED';
+    document.getElementById('gc-status-label').textContent = '🔒 ANSWERS LOCKED!';
+    document.getElementById('gc-status-label').style.color = '#ffd740';
+    document.getElementById('guess-timer-text').textContent = '🔒 Locked — Reveal coming...';
+    showToast('🔒 Answers LOCKED! Reveal coming...', 'first', 4000);
+  });
+
+  socket.on('guess:revealed', (state) => {
+    activeGuessRound = null;
+    document.getElementById('gc-reveal').style.display = 'block';
+    document.getElementById('gc-correct-answer').textContent = state.correctAnswer;
+    document.getElementById('gc-status-label').textContent = '🎯 REVEALED!';
+    document.getElementById('gc-status-label').style.color = '#00e676';
+    if (state.winner) {
+      document.getElementById('gc-winner-line').textContent = `👑 ${state.winner.nickname} guessed ${state.winner.guess}! +${state.winner.xpAwarded} XP`;
+      triggerCelebration(state.winner.nickname, state.winner.xpAwarded);
+    } else {
+      document.getElementById('gc-winner-line').textContent = 'No guesses received!';
+    }
+    if (state.topGuessers && state.topGuessers.length > 1) {
+      const runners = state.topGuessers.slice(1).map(g => `${g.nickname}: ${g.guess}`).join(', ');
+      showToast(`Runners up: ${runners}`, 'match', 5000);
+    }
+  });
+
+  socket.on('guess:idle', () => {
+    activeGuessRound = null;
+    document.getElementById('guess-card-box').style.display = 'none';
+    if (!activeRound && !activeBlurRound) {
+      document.getElementById('standby-box').style.display = 'block';
+    }
+    document.getElementById('gc-status-label').style.color = '#aaa';
+  });
+
+  // ==== BLUR TO GUESS OVERLAY ====
+  socket.on('blur:round_started', (state) => {
+    activeRound = null;
+    activeGuessRound = null;
+    renderBlurCard(state);
+    document.getElementById('blur-timer-bar').style.width = '100%';
+    showToast(`🔍 ${state.title} — Type the product name!`, 'first');
+  });
+
+  socket.on('blur:tick', ({ timeLeft, totalDuration, blurLevel, totalAttempts }) => {
+    if (!activeBlurRound) return;
+    const pct = (timeLeft / totalDuration) * 100;
+    document.getElementById('blur-timer-bar').style.width = pct + '%';
+    function formatTimer(seconds) {
+      if (seconds >= 60) {
+        const m = Math.floor(seconds / 60);
+        const s = seconds % 60;
+        return `${m}m ${s < 10 ? '0' : ''}${s}s`;
+      }
+      return `${seconds}s`;
+    }
+    document.getElementById('blur-timer-text').textContent = `⏳ ${formatTimer(timeLeft)} — Getting clearer!`;
+    document.getElementById('bc-image').style.filter = `blur(${blurLevel}px)`;
+    document.getElementById('bc-attempts').textContent = `${totalAttempts} attempts`;
+    // Fade out the magnifying glass as blur decreases
+    const opacity = Math.max(0, blurLevel / 20 * 0.5);
+    document.getElementById('bc-blur-label').style.opacity = opacity;
+  });
+
+  socket.on('blur:attempt', ({ nickname, totalAttempts }) => {
+    document.getElementById('bc-attempts').textContent = `${totalAttempts} attempts`;
+  });
+
+  socket.on('blur:winner', ({ nickname, answer, bonusXp }) => {
+    document.getElementById('bc-image').style.filter = 'blur(0px)';
+    document.getElementById('bc-blur-label').style.display = 'none';
+    document.getElementById('bc-winner').style.display = 'block';
+    document.getElementById('bc-winner-text').textContent = `🏆 ${nickname} got it!`;
+    document.getElementById('bc-answer-text').textContent = `Answer: "${answer}" — +${bonusXp} XP`;
+    triggerCelebration(nickname, bonusXp);
+  });
+
+  socket.on('blur:round_ended', (state) => {
+    activeBlurRound = null;
+    if (state && state.answer && !state.winner) {
+      document.getElementById('bc-image').style.filter = 'blur(0px)';
+      document.getElementById('bc-blur-label').style.display = 'none';
+      document.getElementById('bc-winner').style.display = 'block';
+      document.getElementById('bc-winner-text').textContent = "Time's up!";
+      document.getElementById('bc-winner-text').style.color = '#ff9100';
+      document.getElementById('bc-answer-text').textContent = `The answer was: "${state.answer}"`;
+    }
+    showToast('🔍 Blur round ended!', 'first');
+  });
+
+  socket.on('blur:idle', () => {
+    activeBlurRound = null;
+    document.getElementById('blur-card-box').style.display = 'none';
+    if (!activeRound && !activeGuessRound) {
+      document.getElementById('standby-box').style.display = 'block';
+    }
+    document.getElementById('bc-winner-text').style.color = '#00e676';
   });
 
   // Initial load
   fetch('/api/leaderboard').then(r => r.json()).then(renderLeaderboard).catch(() => {});
-  fetch('/api/flash/state').then(r => r.json()).then(renderFlashCard).catch(() => {});
+  fetch('/api/guess/state').then(r => r.json()).then(gs => {
+    if (gs && gs.status !== 'IDLE') {
+      renderGuessCard(gs);
+    } else {
+      fetch('/api/blur/state').then(r => r.json()).then(bs => {
+        if (bs && bs.status !== 'IDLE') {
+          renderBlurCard(bs);
+        } else {
+          fetch('/api/flash/state').then(r => r.json()).then(renderFlashCard).catch(() => {});
+        }
+      }).catch(() => {});
+    }
+  }).catch(() => {});
 </script>
 </body>
 </html>

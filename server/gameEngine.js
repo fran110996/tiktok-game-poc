@@ -16,6 +16,11 @@ const XP_RULES = {
   flash_first_match: 250, // MVP bonus for first correct answer
   flash_correct_match: 100, // Standard correct answer
   flash_participation: 5,   // Participation XP
+  guess_winner: 250,
+  guess_top3: 100, 
+  guess_participation: 5,
+  blur_winner: 300,
+  blur_participation: 5,
 };
 
 // Preset Flash Cards
@@ -87,6 +92,19 @@ class GameEngine {
     this.currentFlashRound = null;
     this.flashTimer = null;
     this.revealTimeout = null;
+
+    // Guess the Weight state
+    this.currentGuessRound = null;
+    this.guessTimer = null;
+    this.guessRevealTimeout = null;
+
+    // Blur to Guess state
+    this.currentBlurRound = null;
+    this.blurTimer = null;
+    this.blurRevealTimeout = null;
+
+    // Active minigame mode
+    this.activeMode = null; // 'flash' | 'guess' | 'blur' | null
   }
 
   // -------------------------------------------------------
@@ -113,6 +131,7 @@ class GameEngine {
   // -------------------------------------------------------
   stop() {
     this.isRunning = false;
+    this.activeMode = null;
     if (this.broadcastInterval) {
       clearInterval(this.broadcastInterval);
       this.broadcastInterval = null;
@@ -122,6 +141,12 @@ class GameEngine {
       this.revealTimeout = null;
     }
     this.endFlashRound();
+    if (this.guessTimer) clearInterval(this.guessTimer);
+    if (this.guessRevealTimeout) clearTimeout(this.guessRevealTimeout);
+    this.currentGuessRound = null;
+    if (this.blurTimer) clearInterval(this.blurTimer);
+    if (this.blurRevealTimeout) clearTimeout(this.blurRevealTimeout);
+    this.currentBlurRound = null;
     console.log('[GameEngine] Session stopped');
     this.io.emit('game:stopped');
   }
@@ -132,11 +157,18 @@ class GameEngine {
   reset() {
     this.teamScores = { A: 0, B: 0, C: 0 };
     this.playerCache = {};
+    this.activeMode = null;
     if (this.revealTimeout) {
       clearTimeout(this.revealTimeout);
       this.revealTimeout = null;
     }
     this.endFlashRound();
+    if (this.guessTimer) clearInterval(this.guessTimer);
+    if (this.guessRevealTimeout) clearTimeout(this.guessRevealTimeout);
+    this.currentGuessRound = null;
+    if (this.blurTimer) clearInterval(this.blurTimer);
+    if (this.blurRevealTimeout) clearTimeout(this.blurRevealTimeout);
+    this.currentBlurRound = null;
     this._broadcastState();
     console.log('[GameEngine] Scores reset');
   }
@@ -157,6 +189,21 @@ class GameEngine {
       clearTimeout(this.revealTimeout);
       this.revealTimeout = null;
     }
+
+    // Cancel other modes
+    if (this.guessTimer) clearInterval(this.guessTimer);
+    if (this.guessRevealTimeout) clearTimeout(this.guessRevealTimeout);
+    if (this.currentGuessRound) {
+      this.currentGuessRound = null;
+      this.io.emit('guess:idle');
+    }
+    if (this.blurTimer) clearInterval(this.blurTimer);
+    if (this.blurRevealTimeout) clearTimeout(this.blurRevealTimeout);
+    if (this.currentBlurRound) {
+      this.currentBlurRound = null;
+      this.io.emit('blur:idle');
+    }
+    this.activeMode = 'flash';
 
     this.isRunning = true;
     if (!this.broadcastInterval) {
@@ -241,6 +288,7 @@ class GameEngine {
     this.revealTimeout = setTimeout(() => {
       if (this.currentFlashRound && this.currentFlashRound.status === 'ENDED') {
         this.currentFlashRound = null;
+        if (this.activeMode === 'flash') this.activeMode = null;
         this.io.emit('flash:idle');
         this._broadcastState();
       }
@@ -269,6 +317,337 @@ class GameEngine {
       totalParticipants: this.currentFlashRound.totalParticipants,
       stats: this.currentFlashRound.stats
     };
+  }
+
+  // -------------------------------------------------------
+  // GUESS THE WEIGHT ROUND CONTROLS
+  // -------------------------------------------------------
+
+  startGuessRound(customConfig = null) {
+    if (this.guessTimer) clearInterval(this.guessTimer);
+    if (this.guessRevealTimeout) clearTimeout(this.guessRevealTimeout);
+
+    // Cancel other modes
+    if (this.flashTimer) clearInterval(this.flashTimer);
+    if (this.revealTimeout) clearTimeout(this.revealTimeout);
+    if (this.currentFlashRound) {
+      this.currentFlashRound = null;
+      this.io.emit('flash:idle');
+    }
+    if (this.blurTimer) clearInterval(this.blurTimer);
+    if (this.blurRevealTimeout) clearTimeout(this.blurRevealTimeout);
+    if (this.currentBlurRound) {
+      this.currentBlurRound = null;
+      this.io.emit('blur:idle');
+    }
+    this.activeMode = 'guess';
+
+    this.isRunning = true;
+    if (!this.broadcastInterval) {
+      this.broadcastInterval = setInterval(() => this._broadcastState(), 2000);
+    }
+
+    const duration = customConfig?.durationSeconds || 60;
+
+    this.currentGuessRound = {
+      title: customConfig?.title || 'Guess the Weight',
+      subtitle: customConfig?.subtitle || 'Guess the exact number!',
+      correctAnswer: customConfig?.correctAnswer || 150,
+      status: 'ACTIVE',
+      guesses: new Map(),
+      totalDuration: duration,
+      timeLeft: duration,
+      winner: null,
+      topGuessers: []
+    };
+
+    this.io.emit('guess:round_started', this.getGuessState());
+
+    this.guessTimer = setInterval(() => {
+      if (!this.currentGuessRound || this.currentGuessRound.status !== 'ACTIVE') {
+        clearInterval(this.guessTimer);
+        this.guessTimer = null;
+        return;
+      }
+      this.currentGuessRound.timeLeft--;
+      this.io.emit('guess:tick', {
+        timeLeft: this.currentGuessRound.timeLeft,
+        totalDuration: this.currentGuessRound.totalDuration,
+        totalGuesses: this.currentGuessRound.guesses.size
+      });
+
+      if (this.currentGuessRound.timeLeft <= 0) {
+        clearInterval(this.guessTimer);
+        this.guessTimer = null;
+      }
+    }, 1000);
+
+    return this.getGuessState();
+  }
+
+  lockGuessRound() {
+    if (this.guessTimer) clearInterval(this.guessTimer);
+    this.guessTimer = null;
+    if (this.currentGuessRound) {
+      this.currentGuessRound.status = 'LOCKED';
+      this.io.emit('guess:locked', this.getGuessState());
+    }
+    return this.getGuessState();
+  }
+
+  revealGuessResult() {
+    if (!this.currentGuessRound) return this.getGuessState();
+    
+    this.currentGuessRound.status = 'REVEALED';
+    
+    const allGuesses = Array.from(this.currentGuessRound.guesses.values());
+    const correct = this.currentGuessRound.correctAnswer;
+    
+    allGuesses.sort((a, b) => {
+      const diffA = Math.abs(a.guess - correct);
+      const diffB = Math.abs(b.guess - correct);
+      if (diffA === diffB) return a.timestamp - b.timestamp;
+      return diffA - diffB;
+    });
+
+    const winner = allGuesses[0] || null;
+    const top3 = allGuesses.slice(1, 4);
+
+    this.currentGuessRound.winner = winner;
+    this.currentGuessRound.topGuessers = top3;
+
+    allGuesses.forEach(g => {
+      let xp = XP_RULES.guess_participation;
+      if (g === winner) xp = XP_RULES.guess_winner;
+      else if (top3.includes(g)) xp = XP_RULES.guess_top3;
+      g.xpAwarded = xp;
+      
+      db.addXP(g.userId || null, g.username, g.nickname, xp, 'guess_game', this.creatorUsername, g.team).catch(() => {});
+      
+      // Update cache and scores
+      const uid = g.userId || Object.keys(this.playerCache).find(k => this.playerCache[k].username === g.username);
+      if (uid && this.playerCache[uid]) {
+        this.playerCache[uid].xp += xp;
+        if (this.playerCache[uid].team && this.teamScores[this.playerCache[uid].team] !== undefined) {
+          this.teamScores[this.playerCache[uid].team] += xp;
+        }
+      }
+    });
+
+    const finalState = this.getGuessState();
+    this.io.emit('guess:revealed', finalState);
+
+    this.guessRevealTimeout = setTimeout(() => {
+      if (this.currentGuessRound && this.currentGuessRound.status === 'REVEALED') {
+        this.currentGuessRound = null;
+        if (this.activeMode === 'guess') this.activeMode = null;
+        this.io.emit('guess:idle');
+        this._broadcastState();
+      }
+      this.guessRevealTimeout = null;
+    }, 8000);
+
+    return finalState;
+  }
+
+  getGuessState() {
+    if (!this.currentGuessRound) return { status: 'IDLE' };
+    
+    const state = {
+      title: this.currentGuessRound.title,
+      subtitle: this.currentGuessRound.subtitle,
+      status: this.currentGuessRound.status,
+      totalDuration: this.currentGuessRound.totalDuration,
+      timeLeft: this.currentGuessRound.timeLeft,
+      totalGuesses: this.currentGuessRound.guesses.size,
+      winner: this.currentGuessRound.winner,
+      topGuessers: this.currentGuessRound.topGuessers
+    };
+
+    if (this.currentGuessRound.status === 'REVEALED') {
+      state.correctAnswer = this.currentGuessRound.correctAnswer;
+    }
+    return state;
+  }
+
+  async simulateGuessChat(count = 6) {
+    if (!this.currentGuessRound || this.currentGuessRound.status !== 'ACTIVE') {
+      this.startGuessRound({ correctAnswer: 150 });
+    }
+
+    const demoUsers = [
+      { id: 'sim_1', username: 'mimi_thailand', nickname: 'Mimi 🌸' },
+      { id: 'sim_2', username: 'somchai_bkk', nickname: 'Somchai 🇹🇭' },
+      { id: 'sim_3', username: 'lucas_stream', nickname: 'Lucas ⚡' },
+      { id: 'sim_4', username: 'tammy_agency', nickname: 'Tammy 👑' },
+      { id: 'sim_5', username: 'franco_dev', nickname: 'Franco 🎮' },
+      { id: 'sim_6', username: 'alex_gamer', nickname: 'Alex 🚀' },
+    ];
+
+    const guesses = [130, 145, 148, 152, 160, 175];
+
+    for (let i = 0; i < Math.min(count, demoUsers.length); i++) {
+      setTimeout(async () => {
+        if (!this.currentGuessRound || this.currentGuessRound.status !== 'ACTIVE') return;
+        const user = demoUsers[i];
+        await this.onComment({
+          userId: user.id,
+          username: user.username,
+          nickname: user.nickname,
+          comment: String(guesses[i])
+        });
+      }, i * 650);
+    }
+  }
+
+  // -------------------------------------------------------
+  // BLUR TO GUESS ROUND CONTROLS
+  // -------------------------------------------------------
+
+  startBlurRound(customConfig = null) {
+    if (this.blurTimer) clearInterval(this.blurTimer);
+    if (this.blurRevealTimeout) clearTimeout(this.blurRevealTimeout);
+
+    // Cancel other modes
+    if (this.flashTimer) clearInterval(this.flashTimer);
+    if (this.revealTimeout) clearTimeout(this.revealTimeout);
+    if (this.currentFlashRound) {
+      this.currentFlashRound = null;
+      this.io.emit('flash:idle');
+    }
+    if (this.guessTimer) clearInterval(this.guessTimer);
+    if (this.guessRevealTimeout) clearTimeout(this.guessRevealTimeout);
+    if (this.currentGuessRound) {
+      this.currentGuessRound = null;
+      this.io.emit('guess:idle');
+    }
+    this.activeMode = 'blur';
+
+    this.isRunning = true;
+    if (!this.broadcastInterval) {
+      this.broadcastInterval = setInterval(() => this._broadcastState(), 2000);
+    }
+
+    const duration = customConfig?.durationSeconds || 60;
+
+    this.currentBlurRound = {
+      imageUrl: customConfig?.imageUrl || '',
+      answer: (customConfig?.answer || '').toLowerCase().trim(),
+      title: customConfig?.title || '🔍 Blur to Guess',
+      status: 'ACTIVE',
+      totalDuration: duration,
+      timeLeft: duration,
+      startBlur: 20,
+      currentBlur: 20,
+      winner: null,
+      participants: new Set(),
+      totalAttempts: 0
+    };
+
+    this.io.emit('blur:round_started', this.getBlurState());
+
+    this.blurTimer = setInterval(() => {
+      if (!this.currentBlurRound || this.currentBlurRound.status !== 'ACTIVE') {
+        clearInterval(this.blurTimer);
+        this.blurTimer = null;
+        return;
+      }
+
+      this.currentBlurRound.timeLeft--;
+      this.currentBlurRound.currentBlur = this.currentBlurRound.startBlur * (this.currentBlurRound.timeLeft / this.currentBlurRound.totalDuration);
+      
+      this.io.emit('blur:tick', {
+        timeLeft: this.currentBlurRound.timeLeft,
+        totalDuration: this.currentBlurRound.totalDuration,
+        blurLevel: this.currentBlurRound.currentBlur,
+        totalAttempts: this.currentBlurRound.totalAttempts
+      });
+
+      if (this.currentBlurRound.timeLeft <= 0) {
+        this.endBlurRound();
+      }
+    }, 1000);
+
+    return this.getBlurState();
+  }
+
+  endBlurRound() {
+    if (this.blurTimer) clearInterval(this.blurTimer);
+    this.blurTimer = null;
+
+    if (!this.currentBlurRound) return null;
+
+    if (this.currentBlurRound.status !== 'WON') {
+      this.currentBlurRound.status = 'ENDED';
+    }
+    const finalState = this.getBlurState();
+
+    this.io.emit('blur:round_ended', finalState);
+
+    this.blurRevealTimeout = setTimeout(() => {
+      if (this.currentBlurRound && (this.currentBlurRound.status === 'ENDED' || this.currentBlurRound.status === 'WON')) {
+        this.currentBlurRound = null;
+        if (this.activeMode === 'blur') this.activeMode = null;
+        this.io.emit('blur:idle');
+        this._broadcastState();
+      }
+      this.blurRevealTimeout = null;
+    }, 6000);
+
+    return finalState;
+  }
+
+  getBlurState() {
+    if (!this.currentBlurRound) return { status: 'IDLE' };
+    
+    const state = {
+      imageUrl: this.currentBlurRound.imageUrl,
+      title: this.currentBlurRound.title,
+      status: this.currentBlurRound.status,
+      totalDuration: this.currentBlurRound.totalDuration,
+      timeLeft: this.currentBlurRound.timeLeft,
+      blurLevel: this.currentBlurRound.currentBlur,
+      winner: this.currentBlurRound.winner,
+      totalAttempts: this.currentBlurRound.totalAttempts
+    };
+
+    if (this.currentBlurRound.status === 'ENDED' || this.currentBlurRound.status === 'WON') {
+      state.answer = this.currentBlurRound.answer;
+    }
+    
+    return state;
+  }
+
+  async simulateBlurChat(count = 5) {
+    if (!this.currentBlurRound || this.currentBlurRound.status !== 'ACTIVE') {
+      this.startBlurRound({
+        title: '🧴 Mystery Glow Serum',
+        answer: 'serum',
+        imageUrl: 'https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=600&auto=format&fit=crop&q=80',
+        durationSeconds: 30
+      });
+    }
+
+    const demoUsers = [
+      { id: 'sim_1', username: 'mimi_thailand', nickname: 'Mimi 🌸', comment: 'lipstick' },
+      { id: 'sim_2', username: 'somchai_bkk', nickname: 'Somchai 🇹🇭', comment: 'perfume bottle' },
+      { id: 'sim_3', username: 'lucas_stream', nickname: 'Lucas ⚡', comment: 'face cream' },
+      { id: 'sim_4', username: 'tammy_agency', nickname: 'Tammy 👑', comment: 'serum' },
+      { id: 'sim_5', username: 'alex_gamer', nickname: 'Alex 🚀', comment: 'glow serum' },
+    ];
+
+    for (let i = 0; i < Math.min(count, demoUsers.length); i++) {
+      setTimeout(async () => {
+        if (!this.currentBlurRound || this.currentBlurRound.status !== 'ACTIVE') return;
+        const user = demoUsers[i];
+        await this.onComment({
+          userId: user.id,
+          username: user.username,
+          nickname: user.nickname,
+          comment: user.comment
+        });
+      }, (i + 1) * 1200);
+    }
   }
 
   // -------------------------------------------------------
@@ -395,6 +774,47 @@ class GameEngine {
 
             flashResult = { option: detectedOption, isCorrect };
           }
+        }
+      }
+
+      // Guess the Weight detection
+      if (this.currentGuessRound && this.currentGuessRound.status === 'ACTIVE') {
+        const guessNum = parseFloat(rawComment.replace(/[^0-9.\-]/g, ''));
+        if (!isNaN(guessNum) && !this.currentGuessRound.guesses.has(userId)) {
+          this.currentGuessRound.guesses.set(userId, {
+            userId, username, nickname, guess: guessNum, team: player.team, timestamp: Date.now()
+          });
+          xpEarned += XP_RULES.guess_participation;
+          console.log(`[GuessEngine] 🎯 @${username} guessed: ${guessNum}`);
+          this.io.emit('guess:new_guess', {
+            username, nickname, team: player.team,
+            totalGuesses: this.currentGuessRound.guesses.size
+          });
+        }
+      }
+
+      // Blur to Guess detection
+      if (this.currentBlurRound && this.currentBlurRound.status === 'ACTIVE') {
+        this.currentBlurRound.participants.add(userId);
+        this.currentBlurRound.totalAttempts++;
+        const normalizedComment = rawComment.toLowerCase().trim();
+        const answer = this.currentBlurRound.answer;
+        // Check for match: exact match or comment includes the full answer
+        if (normalizedComment === answer || normalizedComment.includes(answer)) {
+          this.currentBlurRound.status = 'WON';
+          this.currentBlurRound.winner = { userId, username, nickname, team: player.team };
+          const winXp = XP_RULES.blur_winner;
+          xpEarned += winXp;
+          console.log(`[BlurEngine] 🏆 @${username} guessed correctly: "${rawComment}" (+${winXp} XP)`);
+          this.io.emit('blur:winner', {
+            username, nickname, team: player.team,
+            answer: this.currentBlurRound.answer,
+            bonusXp: winXp
+          });
+          // End the round since someone won
+          this.endBlurRound();
+        } else {
+          this.io.emit('blur:attempt', { username, nickname, totalAttempts: this.currentBlurRound.totalAttempts });
         }
       }
 
@@ -582,7 +1002,10 @@ class GameEngine {
       isRunning: this.isRunning,
       teamScores,
       leaderboard,
-      flashState: this.getFlashState()
+      activeMode: this.activeMode,
+      flashState: this.getFlashState(),
+      guessState: this.getGuessState(),
+      blurState: this.getBlurState()
     });
   }
 }

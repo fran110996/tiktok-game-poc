@@ -348,10 +348,10 @@
 <div id="overlays-section">
   <h2>📺 OBS / TIKTOK LIVE STUDIO OVERLAYS</h2>
   <div class="overlay-cards-grid">
-    <div class="overlay-card" style="border: 1.5px solid rgba(255, 0, 127, 0.5);">
+    <div class="overlay-card" style="border: 2px solid rgba(255, 0, 127, 0.7); background: #120e24;">
       <div class="overlay-info">
-        <h3 style="color: #ff007f;">⚡ Flash & Match Live</h3>
-        <p>Interactive game cards, countdown & MVP celebration</p>
+        <h3 style="color: #ff007f;">🎮 Live Games (All-in-One 9:16)</h3>
+        <p>1 link for ALL games: Flash & Match, Guess the Weight, Blur to Guess & Celebrations</p>
       </div>
       <div class="overlay-actions">
         <a href="/overlay/flash" target="_blank" class="btn-overlay-open">Open</a>
@@ -378,6 +378,17 @@
       <div class="overlay-actions">
         <a href="/overlay/leaderboard" target="_blank" class="btn-overlay-open">Open</a>
         <button class="btn-overlay-copy" onclick="copyOverlayUrl('/overlay/leaderboard', this)">📋 Copy Link</button>
+      </div>
+    </div>
+
+    <div class="overlay-card" style="border: 1.5px solid rgba(0, 230, 118, 0.5);">
+      <div class="overlay-info">
+        <h3 style="color: #00e676;">📋 Teleprompter</h3>
+        <p>Host helper: timer, answers, winner alerts & suggested phrases</p>
+      </div>
+      <div class="overlay-actions">
+        <a href="/teleprompter" target="_blank" class="btn-overlay-open">Open</a>
+        <button class="btn-overlay-copy" style="background: #00e676; color: #0d0d1a;" onclick="copyOverlayUrl('/teleprompter', this)">📋 Copy Link</button>
       </div>
     </div>
   </div>
@@ -454,6 +465,107 @@
       </div>
     </details>
   </div>
+</div>
+
+<!-- 🎯 Guess the Weight / Closest Number Controller -->
+<div id="guess-section" style="background: #1a1a2e; border: 2px solid rgba(255, 152, 0, 0.4); border-radius: 12px; padding: 18px; margin-bottom: 20px; box-shadow: 0 0 20px rgba(255, 152, 0, 0.15);">
+  <h2 style="font-size: 1.1rem; color: #ff9100; margin-bottom: 12px; letter-spacing: 1px; display: flex; align-items: center; justify-content: space-between;">
+    <span>🎯 GUESS THE WEIGHT / CLOSEST NUMBER</span>
+    <span class="flash-status-badge" id="guess-badge-status">IDLE</span>
+  </h2>
+  
+  <div class="flash-controls-grid">
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+      <input type="text" id="guess-title" placeholder="Question Title" value="How much does this bag weigh in grams?" style="padding: 10px 14px; border: 1px solid #2a2a4e; border-radius: 8px; background: #0d0d1a; color: #f0f0f0; font-size: 0.95rem;" />
+      <input type="text" id="guess-subtitle" placeholder="Hint / Subtitle" value="Type your guess in chat! Closest number wins!" style="padding: 10px 14px; border: 1px solid #2a2a4e; border-radius: 8px; background: #0d0d1a; color: #f0f0f0; font-size: 0.95rem;" />
+      <input type="number" id="guess-correct" placeholder="Correct Answer (number)" value="150" style="padding: 10px 14px; border: 1px solid #2a2a4e; border-radius: 8px; background: #0d0d1a; color: #ff9100; font-size: 1.1rem; font-weight: bold;" />
+      <select id="guess-duration" style="padding: 10px 14px; border: 1.5px solid #ff9100; border-radius: 8px; background: #0d0d1a; color: #ff9100; font-weight: bold; cursor: pointer;">
+        <option value="30">⏱️ 30 Seconds</option>
+        <option value="60" selected>⏱️ 1 Minute</option>
+        <option value="120">⏱️ 2 Minutes</option>
+        <option value="180">⏱️ 3 Minutes</option>
+        <option value="300">⏱️ 5 Minutes</option>
+      </select>
+    </div>
+    
+    <div class="flash-row">
+      <button style="background: linear-gradient(90deg, #ff9100, #ff5722); color: #fff; padding: 10px 20px; border: none; border-radius: 8px; font-size: 0.95rem; font-weight: bold; cursor: pointer;" id="btn-guess-start" onclick="startGuessRound()">▶ Start Round</button>
+      <button style="background: #ffd740; color: #0d0d1a; padding: 10px 20px; border: none; border-radius: 8px; font-size: 0.95rem; font-weight: bold; cursor: pointer;" id="btn-guess-lock" onclick="lockGuessRound()" disabled>🔒 Lock Answers</button>
+      <button style="background: #00e676; color: #0d0d1a; padding: 10px 20px; border: none; border-radius: 8px; font-size: 0.95rem; font-weight: bold; cursor: pointer;" id="btn-guess-reveal" onclick="revealGuessResult()" disabled>🎯 Reveal Result</button>
+      <button class="btn-flash-sim" onclick="simulateGuessChat()">🎲 Simulate Guesses</button>
+    </div>
+
+    <!-- Live Status Card -->
+    <div class="flash-live-card" id="guess-live-card">
+      <div class="flash-live-header">
+        <span id="guess-card-title" style="color: #ff9100;">🎯 Ready to start a round</span>
+        <span id="guess-card-timer">⏳ Ready</span>
+      </div>
+      <div style="color: #aaa; font-size: 0.85rem;" id="guess-card-subtitle">Set the correct answer and start the round</div>
+      <div style="display: flex; gap: 15px; margin-top: 4px; font-weight: bold;">
+        <span style="color: #00e676;" id="guess-card-winner">👑 Winner: None</span>
+        <span style="color: #ffd740;" id="guess-card-guesses">📝 Guesses: 0</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 🔍 Blur to Guess Controller -->
+<div id="blur-section" style="background: #1a1a2e; border: 2px solid rgba(156, 39, 176, 0.4); border-radius: 12px; padding: 18px; margin-bottom: 20px; box-shadow: 0 0 20px rgba(156, 39, 176, 0.15);">
+  <h2 style="font-size: 1.1rem; color: #ab47bc; margin-bottom: 12px; letter-spacing: 1px; display: flex; align-items: center; justify-content: space-between;">
+    <span>🔍 BLUR TO GUESS</span>
+    <span class="flash-status-badge" id="blur-badge-status">IDLE</span>
+  </h2>
+  
+  <div class="flash-controls-grid">
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+      <input type="text" id="blur-title" placeholder="Round Title" value="What product is this?" style="padding: 10px 14px; border: 1px solid #2a2a4e; border-radius: 8px; background: #0d0d1a; color: #f0f0f0; font-size: 0.95rem;" />
+      <input type="text" id="blur-answer" placeholder="Correct Answer (product name)" value="serum" style="padding: 10px 14px; border: 1px solid #2a2a4e; border-radius: 8px; background: #0d0d1a; color: #ab47bc; font-size: 1.1rem; font-weight: bold;" />
+      <input type="text" id="blur-image-url" placeholder="Image URL (paste URL or use Image Manager below)" style="padding: 10px 14px; border: 1px solid #2a2a4e; border-radius: 8px; background: #0d0d1a; color: #f0f0f0; font-size: 0.95rem; grid-column: span 2;" />
+    </div>
+    <div style="display: flex; gap: 8px; align-items: center;">
+      <select id="blur-duration" style="padding: 10px 14px; border: 1.5px solid #ab47bc; border-radius: 8px; background: #0d0d1a; color: #ab47bc; font-weight: bold; cursor: pointer; min-width: 140px;">
+        <option value="30">⏱️ 30 Seconds</option>
+        <option value="60" selected>⏱️ 1 Minute</option>
+        <option value="120">⏱️ 2 Minutes</option>
+        <option value="180">⏱️ 3 Minutes</option>
+      </select>
+      <button style="background: linear-gradient(90deg, #ab47bc, #7b1fa2); color: #fff; padding: 10px 20px; border: none; border-radius: 8px; font-size: 0.95rem; font-weight: bold; cursor: pointer;" id="btn-blur-start" onclick="startBlurRound()">▶ Start Round</button>
+      <button style="background: #ff1744; color: #fff; padding: 10px 20px; border: none; border-radius: 8px; font-size: 0.95rem; font-weight: bold; cursor: pointer;" id="btn-blur-stop" onclick="stopBlurRound()" disabled>⏹ End Round</button>
+      <button class="btn-flash-sim" onclick="simulateBlurChat()">🎲 Simulate Chat</button>
+    </div>
+
+    <!-- Live Status Card -->
+    <div class="flash-live-card" id="blur-live-card">
+      <div class="flash-live-header">
+        <span id="blur-card-title" style="color: #ab47bc;">🔍 Ready to start</span>
+        <span id="blur-card-timer">⏳ Ready</span>
+      </div>
+      <div style="color: #aaa; font-size: 0.85rem;" id="blur-card-info">Upload or paste an image URL, set the answer, and start</div>
+      <div style="display: flex; gap: 15px; margin-top: 4px; font-weight: bold;">
+        <span style="color: #00e676;" id="blur-card-winner">👑 Winner: None</span>
+        <span style="color: #ffd740;" id="blur-card-attempts">💬 Attempts: 0</span>
+      </div>
+    </div>
+
+    <!-- Blur Preview -->
+    <div id="blur-preview" style="display: none; text-align: center; margin-top: 8px;">
+      <img id="blur-preview-img" src="" style="max-width: 200px; max-height: 150px; border-radius: 8px; border: 2px solid #ab47bc; transition: filter 1s;" />
+    </div>
+  </div>
+</div>
+
+<!-- 📸 Image Manager -->
+<div id="image-manager-section" style="background: #1a1a2e; border: 1px solid #2a2a4e; border-radius: 12px; padding: 18px; margin-bottom: 20px;">
+  <h2 style="font-size: 1rem; color: #00e5ff; margin-bottom: 14px; letter-spacing: 1px;">📸 IMAGE MANAGER</h2>
+  
+  <div style="display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; align-items: center;">
+    <input type="file" id="img-upload-input" accept="image/*" style="display: none;" onchange="uploadImage()" />
+    <button onclick="document.getElementById('img-upload-input').click()" style="background: #00e5ff; color: #0d0d1a; padding: 10px 20px; border: none; border-radius: 8px; font-size: 0.95rem; font-weight: bold; cursor: pointer;">📤 Upload Image</button>
+    <span id="upload-status" style="color: #888; font-size: 0.85rem;"></span>
+  </div>
+  
+  <div id="image-gallery" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px;"></div>
 </div>
 
 <!-- Teams -->
@@ -768,6 +880,291 @@
     document.getElementById('live-card-timer').textContent = `🏁 Ended`;
     addFeed(`🏁 Round Ended! Correct: [${finalState.correctOption}] | Winner: ${finalState.firstWinner?.nickname || 'None'}`, 'flash');
   });
+
+  // ==== GUESS THE WEIGHT ====
+  async function startGuessRound() {
+    const config = {
+      title: document.getElementById('guess-title').value.trim() || 'Guess the Weight!',
+      subtitle: document.getElementById('guess-subtitle').value.trim() || 'Type your guess in chat!',
+      correctAnswer: parseFloat(document.getElementById('guess-correct').value) || 100,
+      durationSeconds: parseInt(document.getElementById('guess-duration').value) || 60
+    };
+    const res = await fetch('/api/guess/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ config })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      document.getElementById('btn-guess-start').disabled = true;
+      document.getElementById('btn-guess-lock').disabled = false;
+      addFeed(`🎯 Guess Round Started: ${config.title}`, 'flash');
+    }
+  }
+
+  async function lockGuessRound() {
+    const res = await fetch('/api/guess/lock', { method: 'POST' });
+    const data = await res.json();
+    if (data.ok) {
+      document.getElementById('btn-guess-lock').disabled = true;
+      document.getElementById('btn-guess-reveal').disabled = false;
+      addFeed('🔒 Answers LOCKED!', 'flash');
+    }
+  }
+
+  async function revealGuessResult() {
+    const res = await fetch('/api/guess/reveal', { method: 'POST' });
+    const data = await res.json();
+    if (data.ok) {
+      document.getElementById('btn-guess-reveal').disabled = true;
+      const winner = data.state?.winner;
+      if (winner) {
+        addFeed(`🎯 Winner: ${winner.nickname} guessed ${winner.guess} (Answer: ${data.state.correctAnswer})! +${winner.xpAwarded} XP`, 'flash');
+      } else {
+        addFeed('🎯 No guesses received!', 'flash');
+      }
+    }
+  }
+
+  async function simulateGuessChat() {
+    addFeed('🎲 Simulating guesses...', 'flash');
+    await fetch('/api/guess/simulate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ count: 6 })
+    });
+  }
+
+  // Guess Socket Listeners
+  socket.on('guess:round_started', (state) => {
+    document.getElementById('guess-badge-status').textContent = 'LIVE ROUND';
+    document.getElementById('guess-badge-status').className = 'flash-status-badge active';
+    document.getElementById('btn-guess-start').disabled = true;
+    document.getElementById('btn-guess-lock').disabled = false;
+    document.getElementById('btn-guess-reveal').disabled = true;
+    document.getElementById('guess-card-title').textContent = `🎯 ${state.title}`;
+    document.getElementById('guess-card-timer').textContent = `⏳ ${formatTimer(state.timeLeft)} remaining`;
+    document.getElementById('guess-card-subtitle').textContent = state.subtitle;
+    document.getElementById('guess-card-winner').textContent = '👑 Winner: Pending...';
+    document.getElementById('guess-card-guesses').textContent = '📝 Guesses: 0';
+  });
+
+  socket.on('guess:tick', ({ timeLeft, totalGuesses }) => {
+    document.getElementById('guess-card-timer').textContent = `⏳ ${formatTimer(timeLeft)} remaining`;
+    document.getElementById('guess-card-guesses').textContent = `📝 Guesses: ${totalGuesses}`;
+  });
+
+  socket.on('guess:new_guess', ({ nickname, totalGuesses }) => {
+    document.getElementById('guess-card-guesses').textContent = `📝 Guesses: ${totalGuesses}`;
+    addFeed(`🎯 ${nickname} submitted a guess!`, 'flash');
+  });
+
+  socket.on('guess:locked', () => {
+    document.getElementById('guess-badge-status').textContent = 'LOCKED';
+    document.getElementById('guess-card-timer').textContent = '🔒 LOCKED';
+    document.getElementById('btn-guess-lock').disabled = true;
+    document.getElementById('btn-guess-reveal').disabled = false;
+    addFeed('🔒 Guesses LOCKED! Reveal coming...', 'flash');
+  });
+
+  socket.on('guess:revealed', (state) => {
+    document.getElementById('guess-badge-status').textContent = 'REVEALED';
+    document.getElementById('guess-badge-status').className = 'flash-status-badge';
+    document.getElementById('btn-guess-start').disabled = false;
+    document.getElementById('btn-guess-lock').disabled = true;
+    document.getElementById('btn-guess-reveal').disabled = true;
+    if (state.winner) {
+      document.getElementById('guess-card-winner').textContent = `👑 ${state.winner.nickname}: ${state.winner.guess} (Answer: ${state.correctAnswer})`;
+    }
+    document.getElementById('guess-card-timer').textContent = '🎯 REVEALED';
+  });
+
+  socket.on('guess:idle', () => {
+    document.getElementById('guess-badge-status').textContent = 'IDLE';
+    document.getElementById('guess-badge-status').className = 'flash-status-badge';
+    document.getElementById('guess-card-title').textContent = '🎯 Ready to start a round';
+    document.getElementById('guess-card-timer').textContent = '⏳ Ready';
+    document.getElementById('guess-card-subtitle').textContent = 'Set the correct answer and start the round';
+    document.getElementById('guess-card-winner').textContent = '👑 Winner: None';
+    document.getElementById('guess-card-guesses').textContent = '📝 Guesses: 0';
+    document.getElementById('btn-guess-start').disabled = false;
+    document.getElementById('btn-guess-lock').disabled = true;
+    document.getElementById('btn-guess-reveal').disabled = true;
+  });
+
+  // ==== BLUR TO GUESS ====
+  async function startBlurRound() {
+    const config = {
+      title: document.getElementById('blur-title').value.trim() || 'What product is this?',
+      answer: document.getElementById('blur-answer').value.trim() || 'product',
+      imageUrl: document.getElementById('blur-image-url').value.trim() || '',
+      durationSeconds: parseInt(document.getElementById('blur-duration').value) || 60
+    };
+    if (!config.imageUrl) {
+      alert('Please enter an image URL or upload an image first!');
+      return;
+    }
+    const res = await fetch('/api/blur/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ config })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      document.getElementById('btn-blur-start').disabled = true;
+      document.getElementById('btn-blur-stop').disabled = false;
+      addFeed(`🔍 Blur Round Started: ${config.title}`, 'flash');
+      // Show preview
+      const preview = document.getElementById('blur-preview');
+      const previewImg = document.getElementById('blur-preview-img');
+      previewImg.src = config.imageUrl;
+      previewImg.style.filter = 'blur(20px)';
+      preview.style.display = 'block';
+    }
+  }
+
+  async function stopBlurRound() {
+    const res = await fetch('/api/blur/end', { method: 'POST' });
+    const data = await res.json();
+    if (data.ok) {
+      document.getElementById('btn-blur-start').disabled = false;
+      document.getElementById('btn-blur-stop').disabled = true;
+      addFeed('🔍 Blur Round Ended', 'flash');
+    }
+  }
+
+  async function simulateBlurChat() {
+    addFeed('🎲 Simulating Blur Guesses...', 'flash');
+    await fetch('/api/blur/simulate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ count: 5 })
+    });
+  }
+
+  // Blur Socket Listeners
+  socket.on('blur:round_started', (state) => {
+    document.getElementById('blur-badge-status').textContent = 'LIVE ROUND';
+    document.getElementById('blur-badge-status').className = 'flash-status-badge active';
+    document.getElementById('btn-blur-start').disabled = true;
+    document.getElementById('btn-blur-stop').disabled = false;
+    document.getElementById('blur-card-title').textContent = `🔍 ${state.title}`;
+    document.getElementById('blur-card-timer').textContent = `⏳ ${formatTimer(state.timeLeft)} remaining`;
+    document.getElementById('blur-card-winner').textContent = '👑 Winner: Searching...';
+    document.getElementById('blur-card-attempts').textContent = '💬 Attempts: 0';
+  });
+
+  socket.on('blur:tick', ({ timeLeft, blurLevel, totalAttempts }) => {
+    document.getElementById('blur-card-timer').textContent = `⏳ ${formatTimer(timeLeft)} remaining`;
+    document.getElementById('blur-card-info').textContent = `Blur: ${blurLevel.toFixed(1)}px | Attempts: ${totalAttempts}`;
+    document.getElementById('blur-card-attempts').textContent = `💬 Attempts: ${totalAttempts}`;
+    // Update preview blur
+    const previewImg = document.getElementById('blur-preview-img');
+    if (previewImg) previewImg.style.filter = `blur(${blurLevel}px)`;
+  });
+
+  socket.on('blur:winner', ({ nickname, answer, bonusXp }) => {
+    document.getElementById('blur-card-winner').textContent = `👑 ${nickname} guessed "${answer}"! +${bonusXp} XP`;
+    addFeed(`🏆 BLUR WINNER! ${nickname} guessed "${answer}"! +${bonusXp} XP`, 'flash');
+    const previewImg = document.getElementById('blur-preview-img');
+    if (previewImg) previewImg.style.filter = 'blur(0px)';
+  });
+
+  socket.on('blur:round_ended', () => {
+    document.getElementById('blur-badge-status').textContent = 'ENDED';
+    document.getElementById('blur-badge-status').className = 'flash-status-badge';
+    document.getElementById('btn-blur-start').disabled = false;
+    document.getElementById('btn-blur-stop').disabled = true;
+    document.getElementById('blur-card-timer').textContent = '🏁 Ended';
+  });
+
+  socket.on('blur:idle', () => {
+    document.getElementById('blur-badge-status').textContent = 'IDLE';
+    document.getElementById('blur-badge-status').className = 'flash-status-badge';
+    document.getElementById('blur-card-title').textContent = '🔍 Ready to start';
+    document.getElementById('blur-card-timer').textContent = '⏳ Ready';
+    document.getElementById('blur-card-info').textContent = 'Upload or paste an image URL, set the answer, and start';
+    document.getElementById('blur-card-winner').textContent = '👑 Winner: None';
+    document.getElementById('blur-card-attempts').textContent = '💬 Attempts: 0';
+    document.getElementById('blur-preview').style.display = 'none';
+    document.getElementById('btn-blur-start').disabled = false;
+    document.getElementById('btn-blur-stop').disabled = true;
+  });
+
+  socket.on('blur:attempt', ({ nickname, totalAttempts }) => {
+    document.getElementById('blur-card-attempts').textContent = `💬 Attempts: ${totalAttempts}`;
+  });
+
+  // ==== IMAGE MANAGER ====
+  async function uploadImage() {
+    const input = document.getElementById('img-upload-input');
+    const file = input.files[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('image', file);
+    document.getElementById('upload-status').textContent = 'Uploading...';
+    try {
+      const res = await fetch('/api/upload/image', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (data.ok) {
+        document.getElementById('upload-status').textContent = `✅ Uploaded: ${data.filename}`;
+        loadImageGallery();
+      } else {
+        document.getElementById('upload-status').textContent = '❌ Upload failed';
+      }
+    } catch(e) {
+      document.getElementById('upload-status').textContent = '❌ Upload error';
+    }
+    input.value = '';
+  }
+
+  async function loadImageGallery() {
+    try {
+      const res = await fetch('/api/upload/list');
+      const images = await res.json();
+      const gallery = document.getElementById('image-gallery');
+      if (images.length === 0) {
+        gallery.innerHTML = '<p style="color: #555; font-size: 0.85rem;">No images uploaded yet</p>';
+        return;
+      }
+      gallery.innerHTML = images.map(img => `
+        <div style="background: #0d0d1a; border-radius: 8px; padding: 8px; border: 1px solid #2a2a4e; text-align: center;">
+          <img src="${img.url}" style="width: 100%; height: 100px; object-fit: cover; border-radius: 6px; margin-bottom: 6px;" />
+          <div style="display: flex; gap: 4px;">
+            <button onclick="copyImageUrl('${img.url}')" style="flex: 1; padding: 6px; background: #00e5ff; color: #0d0d1a; border: none; border-radius: 4px; font-size: 0.75rem; font-weight: bold; cursor: pointer;">📋 Copy URL</button>
+            <button onclick="useImageInBlur('${img.url}')" style="flex: 1; padding: 6px; background: #ab47bc; color: #fff; border: none; border-radius: 4px; font-size: 0.75rem; font-weight: bold; cursor: pointer;">🔍 Use</button>
+            <button onclick="deleteImage('${img.filename}')" style="padding: 6px 8px; background: #ff1744; color: #fff; border: none; border-radius: 4px; font-size: 0.75rem; cursor: pointer;">🗑️</button>
+          </div>
+        </div>
+      `).join('');
+    } catch(e) {}
+  }
+
+  function copyImageUrl(url) {
+    const fullUrl = window.location.origin + url;
+    navigator.clipboard.writeText(fullUrl).then(() => {
+      document.getElementById('upload-status').textContent = '✅ URL copied!';
+      setTimeout(() => { document.getElementById('upload-status').textContent = ''; }, 2000);
+    });
+  }
+
+  function useImageInBlur(url) {
+    const fullUrl = window.location.origin + url;
+    document.getElementById('blur-image-url').value = fullUrl;
+    document.getElementById('upload-status').textContent = '✅ Image set for Blur game!';
+    setTimeout(() => { document.getElementById('upload-status').textContent = ''; }, 2000);
+    // Scroll to blur section
+    document.getElementById('blur-section').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  async function deleteImage(filename) {
+    if (!confirm('Delete this image?')) return;
+    await fetch(`/api/upload/${filename}`, { method: 'DELETE' });
+    loadImageGallery();
+  }
+
+  // Load gallery on page init
+  loadImageGallery();
 
   loadFlashPresets();
 </script>

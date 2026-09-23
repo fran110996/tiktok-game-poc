@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>📋 Teleprompter — Host Helper</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0a0a0a;
+      color: #f0f0f0;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .tp-header {
+      text-align: center;
+      padding: 8px;
+      border-bottom: 1px solid #222;
+    }
+    .tp-header h1 {
+      font-size: 1.2rem;
+      color: #00e5ff;
+      letter-spacing: 2px;
+    }
+    .tp-header .tp-status {
+      font-size: 0.8rem;
+      color: #555;
+      margin-top: 4px;
+    }
+    .tp-status.active { color: #00e676; }
+
+    .tp-timer-section {
+      text-align: center;
+      padding: 24px 16px;
+      background: #111;
+      border-radius: 16px;
+      border: 2px solid #222;
+    }
+    .tp-game-type {
+      font-size: 1rem;
+      color: #888;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+    .tp-timer {
+      font-size: 5rem;
+      font-weight: 900;
+      color: #00e5ff;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+    .tp-timer.urgent { color: #ff1744; animation: pulse 0.5s ease-in-out infinite alternate; }
+    @keyframes pulse { to { opacity: 0.6; } }
+    .tp-timer.locked { color: #ffd740; }
+
+    .tp-info-section {
+      background: #111;
+      border-radius: 16px;
+      padding: 20px;
+      border: 1px solid #222;
+    }
+    .tp-label {
+      font-size: 0.75rem;
+      color: #555;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 4px;
+    }
+    .tp-value {
+      font-size: 1.8rem;
+      font-weight: 900;
+      color: #fff;
+      word-break: break-word;
+    }
+    .tp-value.answer { color: #ff9100; }
+    .tp-value.winner { color: #00e676; }
+
+    .tp-stats {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .tp-stat {
+      flex: 1;
+      min-width: 100px;
+      background: #111;
+      border-radius: 12px;
+      padding: 16px;
+      text-align: center;
+      border: 1px solid #222;
+    }
+    .tp-stat-value {
+      font-size: 2rem;
+      font-weight: 900;
+      color: #00e5ff;
+    }
+    .tp-stat-label {
+      font-size: 0.75rem;
+      color: #555;
+      margin-top: 4px;
+    }
+
+    .tp-phrases {
+      background: #0d1117;
+      border-radius: 16px;
+      padding: 20px;
+      border: 1px dashed #333;
+    }
+    .tp-phrases h3 {
+      font-size: 0.85rem;
+      color: #00e5ff;
+      margin-bottom: 12px;
+      letter-spacing: 1px;
+    }
+    .tp-phrase {
+      font-size: 1.3rem;
+      color: #e0e0e0;
+      padding: 10px 0;
+      border-bottom: 1px solid #1a1a1a;
+      line-height: 1.4;
+    }
+    .tp-phrase:last-child { border-bottom: none; }
+    .tp-phrase .highlight { color: #ffd740; font-weight: bold; }
+
+    .tp-idle {
+      text-align: center;
+      padding: 40px 16px;
+      color: #333;
+    }
+    .tp-idle-icon { font-size: 4rem; margin-bottom: 16px; }
+    .tp-idle-text { font-size: 1.2rem; }
+  </style>
+</head>
+<body>
+
+<div class="tp-header">
+  <h1>📋 TELEPROMPTER</h1>
+  <div class="tp-status" id="tp-status">Waiting for game...</div>
+</div>
+
+<!-- Idle State -->
+<div id="tp-idle" class="tp-idle">
+  <div class="tp-idle-icon">📋</div>
+  <div class="tp-idle-text">No active game round</div>
+  <div style="color: #333; margin-top: 8px; font-size: 0.9rem;">Start a round from the Host Dashboard</div>
+</div>
+
+<!-- Active Game Display -->
+<div id="tp-active" style="display: none; display: flex; flex-direction: column; gap: 16px;">
+  <!-- Timer -->
+  <div class="tp-timer-section">
+    <div class="tp-game-type" id="tp-game-type">⚡ Flash & Match</div>
+    <div class="tp-timer" id="tp-timer">0:00</div>
+  </div>
+
+  <!-- Game Info -->
+  <div class="tp-info-section">
+    <div class="tp-label">CURRENT QUESTION / PRODUCT</div>
+    <div class="tp-value" id="tp-question">—</div>
+  </div>
+
+  <div class="tp-info-section">
+    <div class="tp-label">CORRECT ANSWER (HOST ONLY)</div>
+    <div class="tp-value answer" id="tp-answer">—</div>
+  </div>
+
+  <!-- Stats -->
+  <div class="tp-stats">
+    <div class="tp-stat">
+      <div class="tp-stat-value" id="tp-participants">0</div>
+      <div class="tp-stat-label">Participants</div>
+    </div>
+    <div class="tp-stat">
+      <div class="tp-stat-value" id="tp-leading">—</div>
+      <div class="tp-stat-label">Leading / Winner</div>
+    </div>
+  </div>
+
+  <!-- Suggested Phrases -->
+  <div class="tp-phrases">
+    <h3>💬 SUGGESTED PHRASES</h3>
+    <div id="tp-phrases-list">
+      <div class="tp-phrase">Start a round to see suggested phrases...</div>
+    </div>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  const socket = io();
+  let currentGameType = null;
+
+  function showActive(gameType) {
+    currentGameType = gameType;
+    document.getElementById('tp-idle').style.display = 'none';
+    document.getElementById('tp-active').style.display = 'flex';
+    document.getElementById('tp-status').textContent = `🔴 LIVE — ${gameType}`;
+    document.getElementById('tp-status').className = 'tp-status active';
+  }
+
+  function showIdle() {
+    currentGameType = null;
+    document.getElementById('tp-idle').style.display = 'block';
+    document.getElementById('tp-active').style.display = 'none';
+    document.getElementById('tp-status').textContent = 'Waiting for game...';
+    document.getElementById('tp-status').className = 'tp-status';
+    document.getElementById('tp-timer').className = 'tp-timer';
+  }
+
+  function formatTimerLarge(seconds) {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
+  }
+
+  function updatePhrases(gameType, context) {
+    const phrases = [];
+    const count = context.participants || 0;
+    const winner = context.winner || null;
+
+    if (winner) {
+      phrases.push(`Congratulations <span class="highlight">${winner}</span>! Amazing job!`);
+      phrases.push(`Everyone give <span class="highlight">${winner}</span> some love in the chat!`);
+      phrases.push(`That was so close! Great round everyone!`);
+    } else if (gameType === 'Flash & Match') {
+      phrases.push(`We have <span class="highlight">${count}</span> answers so far! Keep typing 1, 2, or 3!`);
+      phrases.push(`Which one do you think it is? Type your answer NOW!`);
+      phrases.push(`Time is running out! Lock in your answer!`);
+    } else if (gameType === 'Guess the Weight') {
+      phrases.push(`<span class="highlight">${count}</span> people have guessed! Type YOUR number in chat!`);
+      phrases.push(`The closest guess wins! Think carefully!`);
+      phrases.push(`I'm about to lock the answers... last chance!`);
+    } else if (gameType === 'Blur to Guess') {
+      phrases.push(`The image is getting clearer! Can you see what it is?`);
+      phrases.push(`<span class="highlight">${count}</span> attempts so far! Keep guessing!`);
+      phrases.push(`Look closely... type the product name in chat!`);
+    }
+
+    const list = document.getElementById('tp-phrases-list');
+    list.innerHTML = phrases.map(p => `<div class="tp-phrase">${p}</div>`).join('');
+  }
+
+  // ==== FLASH & MATCH ====
+  socket.on('flash:round_started', (state) => {
+    showActive('Flash & Match');
+    document.getElementById('tp-game-type').textContent = '⚡ Flash & Match';
+    document.getElementById('tp-question').textContent = state.title || 'Flash Round';
+    const correct = state.options?.find(o => o.id === state.correctOption);
+    document.getElementById('tp-answer').textContent = correct ? `[${correct.id}] ${correct.text}` : state.correctOption;
+    document.getElementById('tp-participants').textContent = '0';
+    document.getElementById('tp-leading').textContent = '—';
+    updatePhrases('Flash & Match', { participants: 0 });
+  });
+
+  socket.on('flash:tick', ({ timeLeft, totalDuration, totalParticipants }) => {
+    if (currentGameType !== 'Flash & Match') return;
+    document.getElementById('tp-timer').textContent = formatTimerLarge(timeLeft);
+    document.getElementById('tp-timer').className = timeLeft <= 5 ? 'tp-timer urgent' : 'tp-timer';
+    document.getElementById('tp-participants').textContent = totalParticipants || 0;
+    updatePhrases('Flash & Match', { participants: totalParticipants || 0 });
+  });
+
+  socket.on('flash:first_match', ({ nickname, bonusXp }) => {
+    document.getElementById('tp-leading').textContent = `👑 ${nickname}`;
+    updatePhrases('Flash & Match', { winner: nickname });
+  });
+
+  socket.on('flash:round_ended', () => {
+    document.getElementById('tp-timer').textContent = 'ENDED';
+    document.getElementById('tp-timer').className = 'tp-timer';
+  });
+
+  socket.on('flash:idle', showIdle);
+
+  // ==== GUESS THE WEIGHT ====
+  socket.on('guess:round_started', (state) => {
+    showActive('Guess the Weight');
+    document.getElementById('tp-game-type').textContent = '🎯 Guess the Weight';
+    document.getElementById('tp-question').textContent = state.title || 'Guess!';
+    document.getElementById('tp-answer').textContent = 'Secret: (See dashboard)';
+    document.getElementById('tp-participants').textContent = '0';
+    document.getElementById('tp-leading').textContent = '—';
+    updatePhrases('Guess the Weight', { participants: 0 });
+  });
+
+  socket.on('guess:tick', ({ timeLeft, totalDuration, totalGuesses }) => {
+    if (currentGameType !== 'Guess the Weight') return;
+    document.getElementById('tp-timer').textContent = formatTimerLarge(timeLeft);
+    document.getElementById('tp-timer').className = timeLeft <= 5 ? 'tp-timer urgent' : 'tp-timer';
+    document.getElementById('tp-participants').textContent = totalGuesses || 0;
+    updatePhrases('Guess the Weight', { participants: totalGuesses || 0 });
+  });
+
+  socket.on('guess:new_guess', ({ nickname, totalGuesses }) => {
+    document.getElementById('tp-participants').textContent = totalGuesses || 0;
+  });
+
+  socket.on('guess:locked', () => {
+    document.getElementById('tp-timer').textContent = 'LOCKED';
+    document.getElementById('tp-timer').className = 'tp-timer locked';
+  });
+
+  socket.on('guess:revealed', (state) => {
+    document.getElementById('tp-timer').textContent = 'DONE';
+    document.getElementById('tp-timer').className = 'tp-timer';
+    if (state.winner) {
+      document.getElementById('tp-leading').textContent = `👑 ${state.winner.nickname} (${state.winner.guess})`;
+      updatePhrases('Guess the Weight', { winner: state.winner.nickname });
+    }
+    document.getElementById('tp-answer').textContent = `Answer: ${state.correctAnswer}`;
+  });
+
+  socket.on('guess:idle', showIdle);
+
+  // ==== BLUR TO GUESS ====
+  socket.on('blur:round_started', (state) => {
+    showActive('Blur to Guess');
+    document.getElementById('tp-game-type').textContent = '🔍 Blur to Guess';
+    document.getElementById('tp-question').textContent = state.title || 'What is this?';
+    document.getElementById('tp-answer').textContent = 'Secret: (See dashboard)';
+    document.getElementById('tp-participants').textContent = '0';
+    document.getElementById('tp-leading').textContent = '—';
+    updatePhrases('Blur to Guess', { participants: 0 });
+  });
+
+  socket.on('blur:tick', ({ timeLeft, totalDuration, totalAttempts }) => {
+    if (currentGameType !== 'Blur to Guess') return;
+    document.getElementById('tp-timer').textContent = formatTimerLarge(timeLeft);
+    document.getElementById('tp-timer').className = timeLeft <= 5 ? 'tp-timer urgent' : 'tp-timer';
+    document.getElementById('tp-participants').textContent = totalAttempts || 0;
+    updatePhrases('Blur to Guess', { participants: totalAttempts || 0 });
+  });
+
+  socket.on('blur:winner', ({ nickname, answer, bonusXp }) => {
+    document.getElementById('tp-leading').textContent = `👑 ${nickname}`;
+    updatePhrases('Blur to Guess', { winner: nickname });
+    document.getElementById('tp-answer').textContent = `Answer: ${answer}`;
+  });
+
+  socket.on('blur:round_ended', (state) => {
+    document.getElementById('tp-timer').textContent = 'ENDED';
+    document.getElementById('tp-timer').className = 'tp-timer';
+    if (state && state.answer) {
+      document.getElementById('tp-answer').textContent = `Answer: ${state.answer}`;
+    }
+  });
+
+  socket.on('blur:idle', showIdle);
+</script>
+</body>
+</html>

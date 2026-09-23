@@ -17,6 +17,20 @@ const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
 const path = require('path');
+const multer = require('multer');
+const fs = require('fs');
+
+const uploadDir = path.join(__dirname, '../public/uploads');
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, uploadDir),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    cb(null, `img_${Date.now()}${ext}`);
+  }
+});
+const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 } }); // 5MB limit
 
 const TikTokConnector = require('./tiktokConnector');
 const MockConnector = require('./mockConnector');
@@ -150,6 +164,83 @@ app.post('/api/flash/simulate', async (req, res) => {
   res.json({ ok: true, message: `Simulating ${count} chat matches` });
 });
 
+// -------------------------------------------------------
+// Guess the Weight Endpoints
+// -------------------------------------------------------
+app.get('/api/guess/state', (req, res) => {
+  res.json(game.getGuessState());
+});
+
+app.post('/api/guess/start', (req, res) => {
+  const state = game.startGuessRound(req.body?.config || null);
+  res.json({ ok: true, state });
+});
+
+app.post('/api/guess/lock', (req, res) => {
+  const state = game.lockGuessRound();
+  res.json({ ok: true, state });
+});
+
+app.post('/api/guess/reveal', (req, res) => {
+  const state = game.revealGuessResult();
+  res.json({ ok: true, state });
+});
+
+app.post('/api/guess/simulate', async (req, res) => {
+  const count = req.body?.count || 6;
+  await game.simulateGuessChat(count);
+  res.json({ ok: true, message: `Simulating ${count} guesses` });
+});
+
+// -------------------------------------------------------
+// Blur to Guess Endpoints
+// -------------------------------------------------------
+app.get('/api/blur/state', (req, res) => {
+  res.json(game.getBlurState());
+});
+
+app.post('/api/blur/start', (req, res) => {
+  const state = game.startBlurRound(req.body?.config || null);
+  res.json({ ok: true, state });
+});
+
+app.post('/api/blur/end', (req, res) => {
+  const state = game.endBlurRound();
+  res.json({ ok: true, state });
+});
+
+app.post('/api/blur/simulate', async (req, res) => {
+  const count = req.body?.count || 5;
+  await game.simulateBlurChat(count);
+  res.json({ ok: true, message: `Simulating ${count} blur guesses` });
+});
+
+// -------------------------------------------------------
+// Image Upload Endpoints
+// -------------------------------------------------------
+app.post('/api/upload/image', upload.single('image'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+  const url = `/uploads/${req.file.filename}`;
+  res.json({ ok: true, url, filename: req.file.filename });
+});
+
+app.get('/api/upload/list', (req, res) => {
+  const files = fs.readdirSync(uploadDir)
+    .filter(f => /\.(jpg|jpeg|png|gif|webp)$/i.test(f))
+    .map(f => ({ filename: f, url: `/uploads/${f}` }));
+  res.json(files);
+});
+
+app.delete('/api/upload/:filename', (req, res) => {
+  const filepath = path.join(uploadDir, req.params.filename);
+  if (fs.existsSync(filepath)) {
+    fs.unlinkSync(filepath);
+    res.json({ ok: true });
+  } else {
+    res.status(404).json({ error: 'File not found' });
+  }
+});
+
 // Serve dashboard
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/index.html'));
@@ -170,26 +261,27 @@ app.get('/overlay/leaderboard', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/overlay-leaderboard.html'));
 });
 
-// Serve Flash & Match overlay only
+// Serve Game overlay (supports Flash & Match, Guess the Weight, Blur to Guess)
 app.get('/overlay/flash', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/overlay-flashmatch.html'));
+});
+app.get('/overlay/game', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/overlay-flashmatch.html'));
+});
+
+// Serve Teleprompter
+app.get('/teleprompter', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/teleprompter.html'));
 });
 
 // -------------------------------------------------------
 // Socket.io connection & Multi-Streamer Room Routing
 // -------------------------------------------------------
 io.on('connection', (socket) => {
-  console.log('[Server] Client connected:', socket.id);
-
   // Support independent rooms for multiple streamers
   socket.on('room:join', ({ creator }) => {
     const room = creator ? creator.toLowerCase().trim() : 'global';
     socket.join(room);
-    console.log(`[Socket] Client ${socket.id} joined streamer room: ${room}`);
-  });
-
-  socket.on('disconnect', () => {
-    console.log('[Server] Client disconnected:', socket.id);
   });
 });
 
