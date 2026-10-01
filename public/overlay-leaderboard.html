@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Leaderboard Overlay — TikTok LIVE</title>
+  <title>Attacker Rank Overlay — TikTok LIVE</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body {
@@ -66,7 +66,7 @@
 <body>
 
 <div id="leaderboard">
-  <h3>🏆 TOP PLAYERS</h3>
+  <h3>⚔️ TOP ATTACKERS</h3>
   <ul id="lb-list"></ul>
 </div>
 
@@ -78,7 +78,7 @@
   function renderLeaderboard(leaderboard) {
     if (!leaderboard || !Array.isArray(leaderboard)) return;
     const list = document.getElementById('lb-list');
-    list.innerHTML = leaderboard.slice(0, 8).map((p, i) => `
+    list.innerHTML = leaderboard.slice(0, 3).map((p, i) => `
       <li>
         <span class="lb-rank">${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`}</span>
         <span class="lb-name" style="color:${teamColors[p.team] || '#f0f0f0'}">${p.nickname || p.username}</span>

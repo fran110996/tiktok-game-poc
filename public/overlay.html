@@ -131,7 +131,7 @@
 
 <!-- Leaderboard -->
 <div id="leaderboard">
-  <h3>🏆 TOP PLAYERS</h3>
+  <h3>⚔️ TOP ATTACKERS</h3>
   <ul id="lb-list"></ul>
 </div>
 
@@ -146,7 +146,7 @@
   function renderLeaderboard(data) {
     if (!data || !Array.isArray(data)) return;
     const list = document.getElementById('lb-list');
-    list.innerHTML = data.slice(0, 8).map((p, i) => `
+    list.innerHTML = data.slice(0, 3).map((p, i) => `
       <li>
         <span class="lb-rank">${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`}</span>
         <span class="lb-name" style="color:${teamColors[p.team]||'#fff'}">${p.nickname || p.username}</span>
