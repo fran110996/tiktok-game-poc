@@ -216,6 +216,46 @@ app.post('/api/blur/simulate', async (req, res) => {
 });
 
 // -------------------------------------------------------
+// LIVE Mode Selector Endpoints ('game' | 'attacker' | 'fortune')
+// -------------------------------------------------------
+app.get('/api/mode', (req, res) => {
+  res.json({ mode: game.getLiveMode() });
+});
+
+app.post('/api/mode', (req, res) => {
+  const mode = req.body?.mode;
+  const current = game.setLiveMode(mode);
+  res.json({ ok: true, mode: current });
+});
+
+// -------------------------------------------------------
+// Fortune Teller Endpoints
+// -------------------------------------------------------
+app.get('/api/fortune/state', (req, res) => {
+  res.json(game.getFortuneState());
+});
+
+app.post('/api/fortune/config', (req, res) => {
+  const state = game.setFortuneConfig(req.body || {});
+  res.json({ ok: true, state });
+});
+
+app.post('/api/fortune/dismiss', (req, res) => {
+  const queue = game.dismissFortune(req.body?.id);
+  res.json({ ok: true, queue });
+});
+
+app.post('/api/fortune/clear', (req, res) => {
+  const queue = game.clearFortuneQueue();
+  res.json({ ok: true, queue });
+});
+
+app.post('/api/fortune/simulate', async (req, res) => {
+  await game.simulateFortuneComment(req.body?.comment || null);
+  res.json({ ok: true, message: 'Simulated fortune comment processed' });
+});
+
+// -------------------------------------------------------
 // Image Upload Endpoints
 // -------------------------------------------------------
 app.post('/api/upload/image', upload.single('image'), (req, res) => {

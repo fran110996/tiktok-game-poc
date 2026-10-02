@@ -311,11 +311,152 @@
       gap: 6px;
       font-size: 0.9rem;
     }
-    .flash-live-header {
+    /* MODE SELECTOR BAR */
+    #mode-selector-bar {
+      background: linear-gradient(135deg, #16182e, #1f1435);
+      border: 2px solid rgba(121, 40, 202, 0.5);
+      border-radius: 12px;
+      padding: 14px 18px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    }
+    .mode-bar-header {
       display: flex;
       justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      font-size: 0.95rem;
+      font-weight: 800;
+      color: #b388ff;
+      letter-spacing: 1px;
+    }
+    .mode-badge {
+      background: linear-gradient(90deg, #7928ca, #ff007f);
+      color: #fff;
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 900;
+      text-transform: uppercase;
+      box-shadow: 0 0 10px rgba(121, 40, 202, 0.6);
+    }
+    .mode-buttons-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .btn-mode {
+      flex: 1;
+      min-width: 140px;
+      background: #0d0d1a;
+      border: 2px solid #2a2a4e;
+      color: #aaa;
+      padding: 12px 14px;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      font-weight: 800;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      text-align: center;
+    }
+    .btn-mode:hover {
+      border-color: #7928ca;
+      color: #fff;
+      transform: translateY(-1px);
+    }
+    .btn-mode.active {
+      background: linear-gradient(135deg, #7928ca, #ff007f);
+      border-color: #ffd740;
+      color: #fff;
+      box-shadow: 0 0 16px rgba(121, 40, 202, 0.5);
+    }
+
+    /* FORTUNE TELLER SECTION */
+    #fortune-section {
+      background: #151126;
+      border: 2px solid rgba(171, 71, 188, 0.6);
+      border-radius: 14px;
+      padding: 20px;
+      margin-bottom: 24px;
+      box-shadow: 0 0 30px rgba(171, 71, 188, 0.2);
+    }
+    .fortune-queue-container {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 14px;
+      max-height: 420px;
+      overflow-y: auto;
+    }
+    .fortune-card {
+      background: rgba(10, 10, 22, 0.9);
+      border: 1.5px solid rgba(171, 71, 188, 0.4);
+      border-radius: 12px;
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      transition: all 0.25s;
+    }
+    .fortune-card.ready {
+      border-color: #ffd740;
+      box-shadow: 0 0 16px rgba(255, 215, 64, 0.15);
+    }
+    .fortune-card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .fortune-user {
+      font-size: 1rem;
+      font-weight: 800;
       color: #00e5ff;
-      font-weight: bold;
+    }
+    .fortune-numbers-pill {
+      background: rgba(171, 71, 188, 0.2);
+      border: 1px solid #ab47bc;
+      border-radius: 6px;
+      padding: 2px 8px;
+      color: #ffd740;
+      font-weight: 900;
+      font-size: 0.95rem;
+      letter-spacing: 1px;
+    }
+    .fortune-question {
+      font-size: 0.95rem;
+      color: #fff;
+      font-style: italic;
+      padding: 6px 10px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 6px;
+      border-left: 3px solid #00e5ff;
+    }
+    .fortune-answer-box {
+      background: linear-gradient(135deg, rgba(74, 20, 140, 0.3), rgba(26, 15, 45, 0.6));
+      border: 1px solid rgba(255, 215, 64, 0.5);
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: #fff7cc;
+      font-size: 1.05rem;
+      line-height: 1.4;
+      font-weight: 600;
+      box-shadow: 0 0 10px rgba(121, 40, 202, 0.2);
+    }
+    .fortune-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 4px;
+    }
+    .btn-fortune-read {
+      background: #00e676;
+      color: #0d0d1a;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 14px;
+      font-size: 0.85rem;
+      font-weight: 800;
+      cursor: pointer;
     }
   </style>
 </head>
@@ -327,6 +468,19 @@
 <div id="status-bar">
   <div id="status-dot"></div>
   <span id="status-text">Not connected</span>
+</div>
+
+<!-- LIVE Stream Mode Selector (3 Modes) -->
+<div id="mode-selector-bar">
+  <div class="mode-bar-header">
+    <span>🎯 ACTIVE LIVE STREAM MODE:</span>
+    <span class="mode-badge" id="current-mode-display">1. GAME MODE</span>
+  </div>
+  <div class="mode-buttons-row">
+    <button class="btn-mode active" id="btn-mode-game" onclick="setLiveMode('game')">🎮 1. Game Mode</button>
+    <button class="btn-mode" id="btn-mode-attacker" onclick="setLiveMode('attacker')">⚔️ 2. Attacker Mode</button>
+    <button class="btn-mode" id="btn-mode-fortune" onclick="setLiveMode('fortune')">🔮 3. Fortune Teller Mode</button>
+  </div>
 </div>
 
 <!-- Connect -->
@@ -555,9 +709,9 @@
   </div>
 </div>
 
-<!-- 📸 Image Manager -->
+<!-- 📸 Image Manager (Used for Blur to Guess game) -->
 <div id="image-manager-section" style="background: #1a1a2e; border: 1px solid #2a2a4e; border-radius: 12px; padding: 18px; margin-bottom: 20px;">
-  <h2 style="font-size: 1rem; color: #00e5ff; margin-bottom: 14px; letter-spacing: 1px;">📸 IMAGE MANAGER</h2>
+  <h2 style="font-size: 1rem; color: #00e5ff; margin-bottom: 14px; letter-spacing: 1px;">📸 IMAGE MANAGER (BLUR TO GUESS)</h2>
   
   <div style="display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; align-items: center;">
     <input type="file" id="img-upload-input" accept="image/*" style="display: none;" onchange="uploadImage()" />
@@ -566,6 +720,65 @@
   </div>
   
   <div id="image-gallery" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px;"></div>
+</div>
+
+<!-- 🔮 Fortune Teller / AI Numerology Section -->
+<div id="fortune-section">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+    <h2 style="font-size: 1.15rem; color: #e040fb; letter-spacing: 1px; margin: 0; display: flex; align-items: center; gap: 8px;">
+      <span>🔮 FORTUNE TELLER & AI NUMEROLOGY</span>
+    </h2>
+    <span class="flash-status-badge" id="fortune-badge-status" style="background: rgba(171,71,188,0.3); color: #e040fb; border: 1px solid #ab47bc;">STANDBY</span>
+  </div>
+
+  <p style="color: #aaa; font-size: 0.88rem; margin-bottom: 14px; line-height: 1.4;">
+    Viewers type <strong>5 numbers + question</strong> in chat (e.g. <code style="color: #ffd740;">3 7 1 9 5 / Will I get the new job?</code>). AI interprets the numbers and places the answer in your queue below so you can read it out loud on stream!
+  </p>
+
+  <!-- Quick Action & Testing Bar -->
+  <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 16px;">
+    <button class="btn-flash-sim" style="background: linear-gradient(90deg, #ab47bc, #7b1fa2); color: #fff; padding: 10px 18px; border: none; border-radius: 8px; font-weight: 800; cursor: pointer;" onclick="simulateFortuneQuestion()">
+      🎲 Test / Simulate Fortune Comment
+    </button>
+    <button style="background: #2a2a4e; color: #ff5252; padding: 10px 16px; border: 1px solid #ff1744; border-radius: 8px; font-weight: bold; cursor: pointer;" onclick="clearFortuneQueue()">
+      🗑️ Clear Queue
+    </button>
+    <span id="fortune-queue-count" style="color: #ffd740; font-size: 0.88rem; font-weight: bold; margin-left: auto;">Queue: 0 seekers</span>
+  </div>
+
+  <!-- Custom Comment Tester -->
+  <div style="display: flex; gap: 8px; margin-bottom: 14px; background: rgba(0,0,0,0.3); border-radius: 8px; padding: 10px 14px; align-items: center; border: 1px solid #3a2a4e;">
+    <input type="text" id="custom-fortune-input" placeholder="Type ANY test comment (e.g. 12405 will i get a new job?)" style="flex: 1; padding: 10px 14px; border: 1px solid #4a3a6e; border-radius: 6px; background: #0d0d1a; color: #fff; font-size: 0.95rem;" onkeydown="if(event.key==='Enter') sendCustomFortuneComment()" />
+    <button style="background: #00e5ff; color: #0d0d1a; padding: 10px 18px; border: none; border-radius: 6px; font-weight: 800; cursor: pointer; white-space: nowrap;" onclick="sendCustomFortuneComment()">💬 Test Custom Comment</button>
+  </div>
+
+  <!-- Collapsible AI Prompt & API Key Settings -->
+  <details id="fortune-settings-details" style="background: rgba(0,0,0,0.3); border: 1px dashed rgba(171,71,188,0.5); border-radius: 10px; padding: 12px 16px; margin-bottom: 16px;">
+    <summary style="color: #ce93d8; font-weight: bold; cursor: pointer; font-size: 0.92rem;">⚙️ AI Settings & Custom Prompt (Click to edit)</summary>
+    <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 12px;">
+      <div>
+        <label style="display: block; font-size: 0.8rem; color: #aaa; margin-bottom: 4px; font-weight: bold;">AI API KEY (Google Gemini Free, OpenAI, Claude, or Groq):</label>
+        <input type="password" id="fortune-api-key" placeholder="Paste Key (Gemini AQ... or AIza..., OpenAI sk-..., Claude sk-ant-..., Groq gsk_...)" style="width: 100%; padding: 8px 12px; border: 1px solid #3a2a4e; border-radius: 6px; background: #0d0d1a; color: #fff; font-size: 0.9rem;" />
+      </div>
+      <div>
+        <label style="display: block; font-size: 0.8rem; color: #aaa; margin-bottom: 4px; font-weight: bold;">AI SYSTEM PROMPT / INTERPRETATION RULES:</label>
+        <textarea id="fortune-prompt" rows="3" style="width: 100%; padding: 8px 12px; border: 1px solid #3a2a4e; border-radius: 6px; background: #0d0d1a; color: #fff; font-size: 0.88rem; resize: vertical;">You are an intuitive, mystical numerology fortune teller on TikTok LIVE. Interpret the 5 chosen numbers and give a warm, insightful, inspiring reading answering the user question. IMPORTANT: Always respond in the EXACT same language as the viewer question (e.g. if the question is in Thai, reply in natural, polite Thai; if in English, reply in English). Keep it concise (2-3 sentences max), mysterious yet encouraging, so the host can easily read it out loud in real time.</textarea>
+      </div>
+      <div style="display: flex; justify-content: flex-end;">
+        <button style="background: #00e5ff; color: #0d0d1a; padding: 8px 16px; border: none; border-radius: 6px; font-weight: 800; cursor: pointer;" onclick="saveFortuneSettings()">💾 Save AI Settings</button>
+      </div>
+    </div>
+  </details>
+
+  <!-- Live Reading Queue -->
+  <div style="font-size: 0.92rem; font-weight: 800; color: #ffd740; letter-spacing: 0.5px; margin-bottom: 6px;">
+    📜 LIVE READING QUEUE (READ ALOUD TO STREAM):
+  </div>
+  <div class="fortune-queue-container" id="fortune-queue-list">
+    <div style="color: #777; font-size: 0.88rem; padding: 20px; text-align: center; background: rgba(0,0,0,0.2); border-radius: 8px;">
+      🔮 Queue is empty. When viewers comment 5 numbers + a question, their readings will appear here!
+    </div>
+  </div>
 </div>
 
 <!-- Teams -->
@@ -1163,10 +1376,241 @@
     loadImageGallery();
   }
 
+  // =======================================================
+  // LIVE MODE SWITCHER & FORTUNE TELLER CLIENT LOGIC
+  // =======================================================
+  let currentLiveMode = 'game';
+  let fortuneQueue = [];
+
+  function updateModeUI(mode) {
+    currentLiveMode = mode || 'game';
+    const display = document.getElementById('current-mode-display');
+    const badge = document.getElementById('fortune-badge-status');
+
+    ['game', 'attacker', 'fortune'].forEach(m => {
+      const btn = document.getElementById(`btn-mode-${m}`);
+      if (btn) {
+        if (m === currentLiveMode) btn.classList.add('active');
+        else btn.classList.remove('active');
+      }
+    });
+
+    if (display) {
+      if (currentLiveMode === 'game') display.textContent = '1. GAME MODE';
+      else if (currentLiveMode === 'attacker') display.textContent = '2. ATTACKER MODE';
+      else if (currentLiveMode === 'fortune') display.textContent = '3. FORTUNE TELLER MODE';
+    }
+
+    if (badge) {
+      if (currentLiveMode === 'fortune') {
+        badge.textContent = 'ACTIVE LISTENING';
+        badge.style.background = '#00e676';
+        badge.style.color = '#0d0d1a';
+        badge.style.borderColor = '#00e676';
+      } else {
+        badge.textContent = 'STANDBY';
+        badge.style.background = 'rgba(171,71,188,0.3)';
+        badge.style.color = '#e040fb';
+        badge.style.borderColor = '#ab47bc';
+      }
+    }
+
+    // Dynamic Section Visibility based on Selected Live Mode
+    const isGame = (currentLiveMode === 'game');
+    const isAttacker = (currentLiveMode === 'attacker');
+    const isFortune = (currentLiveMode === 'fortune');
+
+    // 1. Minigames (Flash, Guess, Blur, Image Manager) -> Only in Game Mode
+    const gameSectionIds = ['flash-section', 'guess-section', 'blur-section', 'image-manager-section'];
+    gameSectionIds.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = isGame ? 'block' : 'none';
+    });
+
+    // 2. Attacker Ranking & Teams -> Visible in Game & Attacker mode, HIDDEN in Fortune mode
+    const teamsEl = document.getElementById('teams');
+    const lbEl = document.getElementById('leaderboard-section');
+    if (teamsEl) teamsEl.style.display = (isGame || isAttacker) ? 'flex' : 'none';
+    if (lbEl) lbEl.style.display = (isGame || isAttacker) ? 'block' : 'none';
+
+    // 3. Overlays card hub -> Visible in Game & Attacker mode
+    const overlaysEl = document.getElementById('overlays-section');
+    if (overlaysEl) overlaysEl.style.display = (isGame || isAttacker) ? 'block' : 'none';
+
+    // 4. Fortune Teller Section -> ONLY visible in Fortune Mode
+    const fortuneEl = document.getElementById('fortune-section');
+    if (fortuneEl) fortuneEl.style.display = isFortune ? 'block' : 'none';
+  }
+
+  async function setLiveMode(mode) {
+    updateModeUI(mode);
+    try {
+      const res = await fetch('/api/mode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        addFeed(`🔄 Live Mode set to: ${mode.toUpperCase()}`, 'join');
+        if (mode === 'fortune') {
+          document.getElementById('fortune-section').scrollIntoView({ behavior: 'smooth' });
+        }
+      }
+    } catch(e) {}
+  }
+
+  function renderFortuneQueue(queue) {
+    fortuneQueue = queue || [];
+    const countEl = document.getElementById('fortune-queue-count');
+    const listEl = document.getElementById('fortune-queue-list');
+    if (countEl) countEl.textContent = `Queue: ${fortuneQueue.length} seekers`;
+
+    if (!listEl) return;
+    if (fortuneQueue.length === 0) {
+      listEl.innerHTML = `
+        <div style="color: #777; font-size: 0.88rem; padding: 20px; text-align: center; background: rgba(0,0,0,0.2); border-radius: 8px;">
+          🔮 Queue is empty. When viewers comment 5 numbers + a question, their readings will appear here!
+        </div>
+      `;
+      return;
+    }
+
+    listEl.innerHTML = fortuneQueue.map(item => `
+      <div class="fortune-card ${item.status === 'ready' ? 'ready' : ''}" id="fcard-${item.id}">
+        <div class="fortune-card-top">
+          <div class="fortune-user">👤 @${item.nickname || item.username}</div>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <span class="fortune-numbers-pill">[ ${item.numbersFormatted || item.numbers.join(' / ')} ]</span>
+            <small style="color: #888; font-size: 0.78rem;">${item.timestamp || ''}</small>
+          </div>
+        </div>
+        <div class="fortune-question">❓ "${item.question}"</div>
+        <div class="fortune-answer-box">
+          ${item.status === 'pending' ? '<span style="color:#ce93d8; font-style:italic;">🔮 Consulting the oracle...</span>' : `✨ ${item.answer}`}
+        </div>
+        <div class="fortune-actions">
+          <small style="color: ${item.provider && item.provider.includes('Live AI') ? '#00e676' : (item.provider && item.provider.includes('Error') ? '#ff5252' : '#ffd740')}; font-size: 0.78rem; font-weight: bold; margin-right: auto; display: flex; align-items: center; gap: 4px;">
+            ${item.provider && item.provider.includes('Live AI') ? '🟢' : (item.provider && item.provider.includes('Error') ? '❌' : '⚡')} ${item.provider || 'AI'}
+          </small>
+          <button class="btn-fortune-read" onclick="dismissFortune('${item.id}')">
+            ✅ Read Aloud / Dismiss
+          </button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  async function dismissFortune(id) {
+    try {
+      const res = await fetch('/api/fortune/dismiss', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id })
+      });
+      const data = await res.json();
+      if (data.ok) renderFortuneQueue(data.queue);
+    } catch(e) {}
+  }
+
+  async function clearFortuneQueue() {
+    if (!confirm('Clear all questions from queue?')) return;
+    try {
+      const res = await fetch('/api/fortune/clear', { method: 'POST' });
+      const data = await res.json();
+      if (data.ok) renderFortuneQueue(data.queue);
+    } catch(e) {}
+  }
+
+  async function simulateFortuneQuestion() {
+    addFeed('🎲 Simulating viewer fortune question...', 'flash');
+    try {
+      await fetch('/api/fortune/simulate', { method: 'POST' });
+    } catch(e) {}
+  }
+
+  async function sendCustomFortuneComment() {
+    const input = document.getElementById('custom-fortune-input');
+    const comment = input.value.trim();
+    if (!comment) return alert('Enter a comment to test');
+    addFeed(`💬 [Custom Test]: ${comment}`, 'comment');
+    try {
+      await fetch('/api/fortune/simulate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ comment })
+      });
+      input.value = '';
+    } catch(e) {}
+  }
+
+  async function saveFortuneSettings() {
+    const key = document.getElementById('fortune-api-key').value.trim();
+    const prompt = document.getElementById('fortune-prompt').value.trim();
+    localStorage.setItem('fortune_api_key', key);
+    localStorage.setItem('fortune_prompt', prompt);
+
+    try {
+      const res = await fetch('/api/fortune/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey: key, prompt })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        alert('✅ AI Settings saved successfully!');
+      }
+    } catch(e) {
+      alert('Settings saved locally!');
+    }
+  }
+
+  async function initFortuneState() {
+    const savedKey = localStorage.getItem('fortune_api_key') || '';
+    const savedPrompt = localStorage.getItem('fortune_prompt') || '';
+    if (savedKey) document.getElementById('fortune-api-key').value = savedKey;
+    if (savedPrompt) document.getElementById('fortune-prompt').value = savedPrompt;
+
+    try {
+      const res = await fetch('/api/fortune/state');
+      const data = await res.json();
+      if (data) {
+        if (data.liveMode) updateModeUI(data.liveMode);
+        if (data.queue) renderFortuneQueue(data.queue);
+        if (savedKey || savedPrompt) {
+          fetch('/api/fortune/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ apiKey: savedKey, prompt: savedPrompt })
+          }).catch(() => {});
+        } else if (data.config && data.config.hasKey) {
+          document.getElementById('fortune-api-key').placeholder = '🟢 AI Key Active (Configured on Server) — Paste new key to override';
+        }
+      }
+    } catch(e) {}
+  }
+
+  // Socket listeners for Fortune Teller
+  socket.on('mode:changed', ({ mode }) => {
+    updateModeUI(mode);
+  });
+
+  socket.on('fortune:queue', (queue) => {
+    renderFortuneQueue(queue);
+  });
+
+  socket.on('fortune:new_entry', (item) => {
+    addFeed(`🔮 Seeker @${item.nickname || item.username} submitted: [${item.numbers.join(' ')}] "${item.question}"`, 'comment');
+  });
+
+  socket.on('fortune:reading_ready', (item) => {
+    addFeed(`✨ Oracle reading ready for @${item.nickname || item.username}!`, 'flash');
+  });
+
   // Load gallery on page init
   loadImageGallery();
-
   loadFlashPresets();
+  initFortuneState();
 </script>
 </body>
 </html>

@@ -105,6 +105,17 @@ class GameEngine {
 
     // Active minigame mode
     this.activeMode = null; // 'flash' | 'guess' | 'blur' | null
+
+    // LIVE Stream Mode: 'game' | 'attacker' | 'fortune'
+    this.liveMode = 'game';
+
+    // Fortune Teller state
+    this.fortuneQueue = [];
+    this.fortuneConfig = {
+      apiKey: process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY || process.env.CLAUDE_API_KEY || '',
+      model: 'gpt-4o-mini',
+      prompt: 'You are an intuitive, mystical numerology fortune teller on TikTok LIVE. Interpret the 5 chosen numbers and give a warm, insightful, inspiring reading answering the user question. IMPORTANT: Always respond in the EXACT same language as the viewer question (e.g. if the question is in Thai, reply in natural, polite Thai; if in English, reply in English). Keep it concise (2-3 sentences max), mysterious yet encouraging, so the host can easily read it out loud in real time.'
+    };
   }
 
   // -------------------------------------------------------
@@ -660,8 +671,10 @@ class GameEngine {
       nickname = nickname || username;
       const rawComment = (comment != null) ? String(comment) : '';
 
+      const isSim = String(userId).startsWith('sim_');
       const isFlashActive = (this.currentFlashRound && this.currentFlashRound.status === 'ACTIVE');
-      if (!this.isRunning && !isFlashActive) {
+      const isFortuneActive = (this.liveMode === 'fortune');
+      if (!this.isRunning && !isFlashActive && !isFortuneActive && !isSim) {
         return;
       }
 
@@ -699,10 +712,28 @@ class GameEngine {
         this.io.emit('player:team_assigned', { username, nickname, team: assignedTeam });
       }
 
-      // 3. Base participation XP
+      // 3. Fortune Teller Detection
+      let fortuneDetected = false;
+      const fortuneData = this._detectFortuneComment(rawComment);
+      if (fortuneData && (this.liveMode === 'fortune' || isSim)) {
+        if (this.liveMode !== 'fortune') {
+          this.setLiveMode('fortune');
+        }
+        fortuneDetected = true;
+        this.handleFortuneSubmission({
+          userId,
+          username,
+          nickname,
+          numbers: fortuneData.numbers,
+          question: fortuneData.question,
+          rawComment
+        }).catch(err => console.error('[FortuneEngine] Error handling fortune:', err));
+      }
+
+      // 4. Base participation XP
       let xpEarned = XP_RULES.comment;
 
-      // 4. Flash & Match Round Evaluation (Synchronous to preserve arrival order)
+      // 5. Flash & Match Round Evaluation (Synchronous to preserve arrival order)
       let flashResult = null;
       if (this.currentFlashRound && this.currentFlashRound.status === 'ACTIVE') {
         const detectedOption = this._detectFlashOption(rawComment);
@@ -991,6 +1022,366 @@ class GameEngine {
   }
 
   // -------------------------------------------------------
+  // LIVE Stream Operational Mode: 'game' | 'attacker' | 'fortune'
+  // -------------------------------------------------------
+  setLiveMode(mode) {
+    if (!['game', 'attacker', 'fortune'].includes(mode)) return this.liveMode;
+    this.liveMode = mode;
+    console.log(`[GameEngine] 🔄 LIVE Stream Mode set to: ${mode.toUpperCase()}`);
+    this.io.emit('mode:changed', { mode: this.liveMode });
+    this._broadcastState();
+    return this.liveMode;
+  }
+
+  getLiveMode() {
+    return this.liveMode;
+  }
+
+  // -------------------------------------------------------
+  // Fortune Teller Mode Methods
+  // -------------------------------------------------------
+  getFortuneState() {
+    return {
+      liveMode: this.liveMode,
+      queue: this.fortuneQueue,
+      config: {
+        model: this.fortuneConfig.model,
+        prompt: this.fortuneConfig.prompt,
+        hasKey: Boolean(this.fortuneConfig.apiKey && this.fortuneConfig.apiKey.trim().length > 5)
+      }
+    };
+  }
+
+  setFortuneConfig({ apiKey, prompt, model } = {}) {
+    if (apiKey !== undefined) {
+      const cleaned = String(apiKey).trim().replace(/^["'`“”]+|["'`“”]+$/g, '').trim();
+      this.fortuneConfig.apiKey = cleaned;
+      if (cleaned) {
+        console.log(`[FortuneEngine] 🔑 API Key configured! Prefix: "${cleaned.substring(0, 6)}...", Length: ${cleaned.length}`);
+      } else {
+        console.log('[FortuneEngine] ℹ️ API Key cleared. Will use built-in engine.');
+      }
+    }
+    if (prompt !== undefined && String(prompt).trim()) this.fortuneConfig.prompt = String(prompt).trim();
+    if (model !== undefined && String(model).trim()) this.fortuneConfig.model = String(model).trim();
+    
+    this.io.emit('fortune:config_updated', {
+      model: this.fortuneConfig.model,
+      prompt: this.fortuneConfig.prompt,
+      hasKey: Boolean(this.fortuneConfig.apiKey && this.fortuneConfig.apiKey.trim().length > 5)
+    });
+    return this.getFortuneState();
+  }
+
+  _detectFortuneComment(text) {
+    if (!text) return null;
+    const str = String(text).trim();
+
+    // Pattern 1: 5 single digits separated by spaces, commas, dashes, slashes, or colons
+    // e.g. "3 7 1 9 5 / Will I get the new job?" or "1, 4, 8, 9, 2: When will I move?"
+    const sepMatch = str.match(/(?:^|[^\d])(\d)[\s,/-]+(\d)[\s,/-]+(\d)[\s,/-]+(\d)[\s,/-]+(\d)(?:[^\d]|$)/);
+    if (sepMatch) {
+      const numbers = [sepMatch[1], sepMatch[2], sepMatch[3], sepMatch[4], sepMatch[5]];
+      let question = str.replace(sepMatch[0], ' ').replace(/^[/:,\-\s]+|[/:,\-\s]+$/g, '').trim();
+      if (question.length >= 2) {
+        return { numbers, question };
+      }
+    }
+
+    // Pattern 2: 5 consecutive digits e.g. "37195 Will I travel?"
+    const consecMatch = str.match(/\b(\d)(\d)(\d)(\d)(\d)\b/);
+    if (consecMatch) {
+      const numbers = [consecMatch[1], consecMatch[2], consecMatch[3], consecMatch[4], consecMatch[5]];
+      let question = str.replace(consecMatch[0], ' ').replace(/^[/:,\-\s]+|[/:,\-\s]+$/g, '').trim();
+      if (question.length >= 2) {
+        return { numbers, question };
+      }
+    }
+
+    return null;
+  }
+
+  async handleFortuneSubmission({ userId, username, nickname, numbers, question, rawComment }) {
+    const item = {
+      id: `fortune_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+      userId,
+      username,
+      nickname: nickname || username,
+      numbers,
+      numbersFormatted: numbers.join(' / '),
+      question,
+      answer: '🔮 Consulting the oracle...',
+      status: 'pending',
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+
+    // Prepend to queue
+    this.fortuneQueue.unshift(item);
+    if (this.fortuneQueue.length > 40) this.fortuneQueue.pop(); // keep last 40 entries
+    
+    this.io.emit('fortune:queue', this.fortuneQueue);
+    this.io.emit('fortune:new_entry', item);
+    console.log(`[FortuneEngine] 📥 New submission from @${username} [${numbers.join(' ')}]: "${question}"`);
+
+    // Generate AI interpretation asynchronously
+    const res = await this._generateFortuneReading(numbers, question, nickname || username);
+    item.answer = typeof res === 'object' ? res.answer : res;
+    item.provider = typeof res === 'object' ? res.provider : 'AI';
+    item.status = 'ready';
+
+    this.io.emit('fortune:reading_ready', item);
+    this.io.emit('fortune:queue', this.fortuneQueue);
+    console.log(`[FortuneEngine] ✨ Reading ready for @${username} [Provider: ${item.provider}]`);
+  }
+
+  async _generateFortuneReading(numbers, question, username) {
+    const numbersStr = numbers.join(' ');
+    const userPrompt = `Seeker @${username} chose 5 numbers: [${numbersStr}]. Question: "${question}". Provide an interpretation based on these numbers.`;
+    
+    // Clean and sanitize key (strip quotes, smart quotes, backticks, whitespace)
+    const rawKey = (this.fortuneConfig.apiKey || '').toString().trim();
+    const key = rawKey.replace(/^["'`“”]+|["'`“”]+$/g, '').trim();
+
+    if (key) {
+      console.log(`[FortuneEngine] 🔑 Processing fortune reading with key prefix: "${key.substring(0, 7)}..." (Length: ${key.length})`);
+    } else {
+      console.log('[FortuneEngine] ℹ️ No API key provided. Using built-in local numerology engine.');
+    }
+
+    // 1. Google Gemini (Free / High Limits - starts with 'AIza' or 'AQ.')
+    if (key && (key.startsWith('AIza') || key.startsWith('AQ.') || key.startsWith('aiza') || key.startsWith('aq.'))) {
+      const geminiModels = [
+        'gemini-3-flash-preview',
+        'gemini-3.1-flash-lite-preview',
+        'gemini-flash-latest',
+        'gemini-2.5-flash',
+        'gemini-1.5-flash'
+      ];
+      let lastError = null;
+
+      for (const model of geminiModels) {
+        try {
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+          const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              system_instruction: {
+                parts: [{ text: this.fortuneConfig.prompt }]
+              },
+              contents: [
+                { parts: [{ text: userPrompt }] }
+              ],
+              generationConfig: {
+                thinkingConfig: { thinkingBudget: 0 },
+                maxOutputTokens: 600,
+                temperature: 0.8
+              }
+            })
+          });
+          const data = await response.json();
+          const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (text) {
+            console.log(`[FortuneEngine] 🟢 Response from Google Gemini (${model})!`);
+            return { answer: text.trim(), provider: 'Google Gemini (Live AI)' };
+          } else if (data.error) {
+            lastError = data.error.message;
+            const isRetryable =
+              data.error.code === 404 ||
+              data.error.code === 429 ||
+              data.error.code === 503 ||
+              data.error.status === 'NOT_FOUND' ||
+              data.error.status === 'RESOURCE_EXHAUSTED' ||
+              data.error.status === 'UNAVAILABLE' ||
+              (data.error.message && (
+                data.error.message.includes('high demand') ||
+                data.error.message.includes('overloaded') ||
+                data.error.message.includes('spikes')
+              ));
+
+            if (isRetryable) {
+              console.warn(`[FortuneEngine] ⚠️ Gemini (${model}) busy or unavailable ("${data.error.message}"). Trying next model...`);
+              continue; // Try next fallback model seamlessly!
+            }
+            console.error(`[FortuneEngine] ❌ Gemini Error (${model}):`, data.error.message);
+            return { answer: `[Gemini Error: ${data.error.message}]`, provider: 'Gemini Error' };
+          }
+        } catch (err) {
+          lastError = err.message;
+          console.error(`[FortuneEngine] ❌ Gemini API call failed (${model}):`, err.message);
+        }
+      }
+
+      console.warn('[FortuneEngine] ⚠️ All Gemini models busy. Falling back smoothly to built-in numerology engine for this question.');
+      const localResult = this._getLocalNumerologyReading(numbers, question);
+      return { answer: localResult.answer, provider: 'Built-in Engine (Live AI High Demand Fallback)' };
+    }
+
+    // 2. Anthropic Claude (Starts with 'sk-ant-')
+    if (key && key.startsWith('sk-ant-')) {
+      try {
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': key,
+            'anthropic-version': '2023-06-01'
+          },
+          body: JSON.stringify({
+            model: 'claude-3-5-haiku-20241022',
+            max_tokens: 400,
+            system: this.fortuneConfig.prompt,
+            messages: [{ role: 'user', content: userPrompt }]
+          })
+        });
+        const data = await response.json();
+        if (data.content && data.content[0] && data.content[0].text) {
+          console.log('[FortuneEngine] 🟢 Response from Claude 3.5 Haiku (Live AI)!');
+          return { answer: data.content[0].text.trim(), provider: 'Claude 3.5 Haiku (Live AI)' };
+        } else if (data.error) {
+          console.error('[FortuneEngine] ❌ Claude error:', data.error.message);
+          return { answer: `[Claude Error: ${data.error.message}]`, provider: 'Claude Error' };
+        }
+      } catch (err) {
+        console.error('[FortuneEngine] ❌ Claude API call failed:', err.message);
+        return { answer: `[Claude Connection Error: ${err.message}]`, provider: 'Claude Error' };
+      }
+    }
+
+    // 3. Groq (Free & Ultra Fast - starts with 'gsk_')
+    if (key && key.startsWith('gsk_')) {
+      try {
+        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${key}`
+          },
+          body: JSON.stringify({
+            model: 'llama-3.3-70b-versatile',
+            messages: [
+              { role: 'system', content: this.fortuneConfig.prompt },
+              { role: 'user', content: userPrompt }
+            ],
+            max_tokens: 400,
+            temperature: 0.8
+          })
+        });
+        const data = await response.json();
+        if (data.choices && data.choices[0] && data.choices[0].message) {
+          console.log('[FortuneEngine] 🟢 Response from Groq Llama 3.3 70B (Live AI)!');
+          return { answer: data.choices[0].message.content.trim(), provider: 'Groq Llama 3.3 70B (Live AI)' };
+        } else if (data.error) {
+          console.error('[FortuneEngine] ❌ Groq error:', data.error.message);
+          return { answer: `[Groq Error: ${data.error.message}]`, provider: 'Groq Error' };
+        }
+      } catch (err) {
+        console.error('[FortuneEngine] ❌ Groq API call failed:', err.message);
+        return { answer: `[Groq Connection Error: ${err.message}]`, provider: 'Groq Error' };
+      }
+    }
+
+    // 4. OpenAI (Starts with 'sk-')
+    if (key && key.startsWith('sk-')) {
+      try {
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${key}`
+          },
+          body: JSON.stringify({
+            model: this.fortuneConfig.model || 'gpt-4o-mini',
+            messages: [
+              { role: 'system', content: this.fortuneConfig.prompt },
+              { role: 'user', content: userPrompt }
+            ],
+            max_tokens: 400,
+            temperature: 0.8
+          })
+        });
+        const data = await response.json();
+        if (data.choices && data.choices[0] && data.choices[0].message) {
+          console.log('[FortuneEngine] 🟢 Response from OpenAI GPT-4o-mini (Live AI)!');
+          return { answer: data.choices[0].message.content.trim(), provider: 'OpenAI GPT-4o-mini (Live AI)' };
+        } else if (data.error) {
+          console.error('[FortuneEngine] ❌ OpenAI error:', data.error.message);
+          return { answer: `[OpenAI Error: ${data.error.message}]`, provider: 'OpenAI Error' };
+        }
+      } catch (err) {
+        console.error('[FortuneEngine] ❌ OpenAI API call failed:', err.message);
+        return { answer: `[OpenAI Connection Error: ${err.message}]`, provider: 'OpenAI Error' };
+      }
+    }
+
+    // If key was provided but didn't match any known prefix:
+    if (key && key.length > 5) {
+      console.warn(`[FortuneEngine] ⚠️ Key provided but not recognized (starts with "${key.substring(0, 6)}...", length ${key.length})`);
+      return {
+        answer: `[Key Format Error: Key starts with "${key.substring(0, 5)}...". Please use Google Gemini (AQ... or AIza...), OpenAI (sk-...), Claude (sk-ant-...), or Groq (gsk_...)]`,
+        provider: 'Unrecognized Key'
+      };
+    }
+
+    // 5. Built-in Mystical Numerology Engine (Zero-Cost / Fallback / Testing Mode)
+    console.log('[FortuneEngine] ⚡ Generated using: Built-in Numerology Engine (Local Fallback)');
+    return this._getLocalNumerologyReading(numbers, question);
+  }
+
+  _getLocalNumerologyReading(numbers, question) {
+    const archetypes = [
+      `The numbers ${numbers[0]} and ${numbers[1]} reveal bold beginnings and shifting momentum. Regarding "${question}", trust your instincts over the coming days—a positive breakthrough is aligning.`,
+      `With ${numbers.slice(0, 3).join('-')}, your energy is transitioning from uncertainty into balance. For "${question}", patience is rewarded with an unexpected answer very soon.`,
+      `A powerful sequence (${numbers.join(', ')}). Number ${numbers[2]} stands at the center, bringing clarity. The universe indicates a definite yes to "${question}", as long as you remain grounded.`,
+      `The digits show past cycles concluding. While ${numbers[0]} demands focus, ${numbers[4]} brings fulfillment. Expect a sign regarding "${question}" before the week closes.`
+    ];
+    const hash = (numbers.join('') + question).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    return { answer: archetypes[hash % archetypes.length], provider: 'Built-in Numerology Engine (Local)' };
+  }
+
+  dismissFortune(id) {
+    this.fortuneQueue = this.fortuneQueue.filter(item => item.id !== id);
+    this.io.emit('fortune:queue', this.fortuneQueue);
+    return this.fortuneQueue;
+  }
+
+  clearFortuneQueue() {
+    this.fortuneQueue = [];
+    this.io.emit('fortune:queue', this.fortuneQueue);
+    return this.fortuneQueue;
+  }
+
+  async simulateFortuneComment(customComment = null) {
+    if (this.liveMode !== 'fortune') {
+      this.setLiveMode('fortune');
+    }
+    const FAKE_QUESTIONS = [
+      { numbers: ['3', '7', '1', '9', '5'], q: 'Will I get the new job?' },
+      { numbers: ['8', '2', '4', '6', '1'], q: 'Will I travel abroad this year?' },
+      { numbers: ['5', '3', '9', '2', '7'], q: 'Is my financial breakthrough coming?' },
+      { numbers: ['1', '9', '3', '8', '4'], q: 'Will my love life improve soon?' },
+      { numbers: ['7', '4', '2', '8', '6'], q: 'Should I start my new business now?' }
+    ];
+    const FAKE_USERS = [
+      { username: 'mimi_star', nickname: 'Mimi' },
+      { username: 'john_doe99', nickname: 'John' },
+      { username: 'ploy_live', nickname: 'Ploy' },
+      { username: 'alex_glow', nickname: 'Alex' },
+      { username: 'sarah_k', nickname: 'Sarah' }
+    ];
+    const u = FAKE_USERS[Math.floor(Math.random() * FAKE_USERS.length)];
+    const item = FAKE_QUESTIONS[Math.floor(Math.random() * FAKE_QUESTIONS.length)];
+    const comment = customComment ? String(customComment).trim() : `${item.numbers.join(' ')} / ${item.q}`;
+
+    await this.onComment({
+      userId: 'sim_' + Date.now(),
+      username: u.username,
+      nickname: u.nickname,
+      comment
+    });
+  }
+
+  // -------------------------------------------------------
   // Broadcast current game state to all connected clients
   // -------------------------------------------------------
   async _broadcastState() {
@@ -1000,12 +1391,14 @@ class GameEngine {
 
     this.io.emit('game:state', {
       isRunning: this.isRunning,
+      liveMode: this.liveMode,
       teamScores,
       leaderboard,
       activeMode: this.activeMode,
       flashState: this.getFlashState(),
       guessState: this.getGuessState(),
-      blurState: this.getBlurState()
+      blurState: this.getBlurState(),
+      fortuneQueue: this.fortuneQueue
     });
   }
 }
