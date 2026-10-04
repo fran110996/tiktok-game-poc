@@ -108,6 +108,9 @@ class TikTokConnector extends EventEmitter {
       return state;
     } catch (err) {
       console.error('[TikTokConnector] Failed to connect:', err.message);
+      if (err.message && (err.message.includes('retry-after') || err.message.includes('Cannot read properties of undefined'))) {
+        throw new Error('TikTok connection rate limit / cooldown. Please make sure your LIVE is currently broadcasting on TikTok and wait 1-2 minutes before clicking Connect again.');
+      }
       throw err;
     }
   }

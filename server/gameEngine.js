@@ -1132,6 +1132,7 @@ class GameEngine {
     this.io.emit('fortune:reading_ready', item);
     this.io.emit('fortune:queue', this.fortuneQueue);
     console.log(`[FortuneEngine] ✨ Reading ready for @${username} [Provider: ${item.provider}]`);
+    console.log(`[FortuneEngine] 🔮 Oracle Response: "${item.answer}"`);
   }
 
   async _generateFortuneReading(numbers, question, username) {

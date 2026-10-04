@@ -91,7 +91,11 @@ app.post('/api/connect', async (req, res) => {
     await game.start(username);
     res.json({ ok: true, message: `Connected to @${username} and game started!` });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    let msg = err.message || 'Connection failed';
+    if (msg.includes('retry-after') || msg.includes('Cannot read properties of undefined')) {
+      msg = 'TikTok connection cooldown. Please ensure your TikTok LIVE is currently broadcasting and wait 1-2 minutes before clicking Connect again.';
+    }
+    res.status(500).json({ error: msg });
   }
 });
 
