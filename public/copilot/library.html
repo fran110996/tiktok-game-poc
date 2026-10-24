@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Context & documents — Sales Copilot</title>
+  <link rel="stylesheet" href="/copilot/assets/copilot.css" />
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="nav"></aside>
+  <main class="main">
+    <div class="page-head">
+      <div>
+        <h1>Context & documents</h1>
+        <p>What the copilot knows about you before each session.</p>
+      </div>
+    </div>
+
+    <div class="grid grid-2">
+      <section class="card">
+        <h2>Context profiles <button class="btn-primary btn-sm" id="new-context">+ New profile</button></h2>
+        <p class="muted small" style="margin-bottom:10px">Who you are, your company, products, goals and tone. Pick one when you start a session.</p>
+        <div class="list" id="context-list"><div class="empty">Loading…</div></div>
+      </section>
+
+      <section class="card">
+        <h2>Documents</h2>
+        <p class="muted small" style="margin-bottom:10px">PDF, DOCX, TXT or MD — max 10 MB each. Text is extracted on the server; only relevant parts are sent to the AI.</p>
+        <div class="row" style="margin-bottom:12px">
+          <input type="file" id="doc-file" accept=".pdf,.docx,.txt,.md" multiple style="flex:1" />
+          <button class="btn-primary" id="upload-btn">Upload</button>
+        </div>
+        <div class="list" id="doc-list"><div class="empty">Loading…</div></div>
+      </section>
+    </div>
+  </main>
+</div>
+<script src="/copilot/assets/common.js"></script>
+<script src="/copilot/assets/library.js"></script>
+</body>
+</html>

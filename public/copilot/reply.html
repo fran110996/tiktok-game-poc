@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reply assistant — Sales Copilot</title>
+  <link rel="stylesheet" href="/copilot/assets/copilot.css" />
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="nav"></aside>
+  <main class="main">
+    <div class="page-head">
+      <div>
+        <h1>Reply assistant</h1>
+        <p>Paste any conversation or email, get ready-to-send drafts. Nothing is sent automatically.</p>
+      </div>
+    </div>
+
+    <div class="grid grid-2">
+      <section class="card">
+        <h2>Message</h2>
+        <div class="grid grid-2" style="gap:10px">
+          <div class="field">
+            <label for="channel">Channel</label>
+            <select id="channel">
+              <option value="email">Email</option>
+              <option value="line">LINE</option>
+              <option value="whatsapp">WhatsApp</option>
+              <option value="linkedin">LinkedIn</option>
+              <option value="messenger">Messenger</option>
+              <option value="sms">SMS</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="contact">Contact (optional)</label>
+            <select id="contact"><option value="">— None —</option></select>
+          </div>
+          <div class="field">
+            <label for="context">Context profile</label>
+            <select id="context"><option value="">— None —</option></select>
+          </div>
+          <div class="field">
+            <label for="reply-lang">Reply language</label>
+            <select id="reply-lang"></select>
+          </div>
+        </div>
+        <div class="field">
+          <label for="text">Paste the conversation or email</label>
+          <textarea id="text" rows="12" placeholder="Paste here…"></textarea>
+        </div>
+        <div class="field">
+          <label for="note">Note (optional)</label>
+          <input type="text" id="note" placeholder='e.g. "decline politely", "ask for the price list"' />
+        </div>
+        <div class="field">
+          <label>Documents to use (optional)</label>
+          <div id="doc-checks" class="stack small"><span class="muted">Loading…</span></div>
+        </div>
+        <button class="btn-primary btn-lg" id="go">✦ Draft replies</button>
+      </section>
+
+      <section class="card" id="result-card">
+        <h2>Result</h2>
+        <div id="result"><div class="empty">Drafts will appear here.</div></div>
+      </section>
+    </div>
+  </main>
+</div>
+<script src="/copilot/assets/common.js"></script>
+<script src="/copilot/assets/reply.js"></script>
+</body>
+</html>

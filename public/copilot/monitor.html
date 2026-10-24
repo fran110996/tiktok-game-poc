@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Morning summary — Sales Copilot</title>
+  <link rel="stylesheet" href="/copilot/assets/copilot.css" />
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="nav"></aside>
+  <main class="main">
+    <div class="page-head">
+      <div>
+        <h1>Morning summary</h1>
+        <p>Public web & news about your brands, products and keywords. Runs automatically the first time you open the copilot each day.</p>
+      </div>
+      <div class="row">
+        <span class="small muted" id="run-status"></span>
+        <button class="btn-go" id="run-btn">▶ Run now</button>
+      </div>
+    </div>
+
+    <div class="grid split-grid">
+      <div>
+        <div class="card">
+          <h2 id="report-title">Latest report</h2>
+          <div id="report"><div class="empty">Loading…</div></div>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <h2>Settings <button class="btn-primary btn-sm" id="save-settings">Save</button></h2>
+          <div class="field"><label>Brands (one per line)</label><textarea id="s-brands" rows="3" placeholder="e.g. ACME Skincare"></textarea></div>
+          <div class="field"><label>Products (one per line — optional “Brand: Product” to group)</label><textarea id="s-products" rows="3" placeholder="ACME Skincare: Vitamin C serum"></textarea></div>
+          <div class="field"><label>Keywords (one per line — optional “Brand: keyword”)</label><textarea id="s-keywords" rows="3" placeholder="clean beauty Thailand"></textarea></div>
+          <div class="field"><label>Sites to check first (optional, one per line)</label><textarea id="s-sites" rows="2" placeholder="bangkokpost.com"></textarea></div>
+          <div class="field"><label>Languages (first = summary language)</label><div id="s-langs" class="row small"></div></div>
+          <p class="small muted">Social networks are best-effort only — public news and websites work best.</p>
+        </div>
+        <div class="card">
+          <h2>Past reports</h2>
+          <div class="list" id="report-list"><div class="empty">Loading…</div></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+<script src="/copilot/assets/common.js"></script>
+<script src="/copilot/assets/monitor.js"></script>
+</body>
+</html>

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Upcoming — Sales Copilot</title>
+  <link rel="stylesheet" href="/copilot/assets/copilot.css" />
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="nav"></aside>
+  <main class="main">
+    <div class="page-head">
+      <div>
+        <h1>Upcoming</h1>
+        <p id="range">Events and follow-ups in the next 14 days, with a suggested message for each.</p>
+      </div>
+      <div class="row">
+        <select id="context" style="width:auto" title="Context profile used for the messages"><option value="">No context profile</option></select>
+        <button class="btn-ghost" id="regen">↻ Regenerate messages</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Next 14 days</h2>
+      <div class="list" id="upcoming-list"><div class="empty">Loading…</div></div>
+    </div>
+
+    <div class="card">
+      <h2>Group message helper</h2>
+      <p class="muted small" style="margin-bottom:12px">Pick contacts by tag and write one personalised message per person. Copy and send each one yourself — nothing is sent automatically.</p>
+      <div class="grid grid-2" style="gap:10px">
+        <div class="field">
+          <label for="g-tag">Tag</label>
+          <select id="g-tag"></select>
+        </div>
+        <div class="field">
+          <label>Contacts</label>
+          <div id="g-contacts" class="stack small" style="max-height:160px;overflow:auto"><span class="muted">Choose a tag.</span></div>
+        </div>
+      </div>
+      <div class="field">
+        <label for="g-purpose">What is the message about?</label>
+        <textarea id="g-purpose" rows="3" placeholder="e.g. Invite them to our new product launch on 12 Nov in Bangkok, ask them to RSVP"></textarea>
+      </div>
+      <button class="btn-primary" id="g-go">✦ Write messages</button>
+      <div id="g-result" style="margin-top:14px"></div>
+    </div>
+  </main>
+</div>
+<script src="/copilot/assets/common.js"></script>
+<script src="/copilot/assets/upcoming.js"></script>
+</body>
+</html>

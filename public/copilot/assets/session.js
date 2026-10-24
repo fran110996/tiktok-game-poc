@@ -1,0 +1,706 @@
+// =============================================================
+// Live meeting assistant
+//  - capture: mic (Me) + screen/tab audio (Them), 5 s chunks
+//  - panels 1/2/3 updated over Socket.io namespace /copilot
+//  - earphone playback (OpenAI TTS via server)
+//  - pop-out window (Document Picture-in-Picture, popup fallback)
+// =============================================================
+
+(() => {
+  const { api, esc, $, toast, pref, fillLanguages, fmtDateTime } = Copilot;
+  const R = CopilotRender;
+  Copilot.init('session');
+
+  const CHUNK_MS = 5000;
+  const SILENCE_RMS = 0.012; // chunks quieter than this are not sent
+
+  const state = {
+    session: null,
+    lines: [],
+    panel2: null,
+    panel3: null,
+    done: new Set(),
+    recorders: [],
+    streams: [],
+    socket: null,
+    startedAt: null,
+    timer: null,
+    targets: new Set(), // extra render targets (pop-out window)
+  };
+
+  // =============================================================
+  // SETUP
+  // =============================================================
+  async function loadSetup() {
+    await fillLanguages($('#my-lang'), { selected: pref('myLanguage') || 'en' });
+    await fillLanguages($('#their-lang'), { auto: true, selected: pref('theirLanguage') || 'auto' });
+
+    const [contexts, docs, contacts] = await Promise.all([
+      api('/contexts').catch(() => []),
+      api('/documents').catch(() => []),
+      api('/contacts').catch(() => []),
+    ]);
+
+    const ctxSel = $('#context-select');
+    ctxSel.innerHTML += contexts.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+    ctxSel.addEventListener('change', () => {
+      const c = contexts.find(x => x.id === ctxSel.value);
+      $('#context-text').value = c ? c.text : '';
+      pref('lastContext', ctxSel.value);
+    });
+    const last = pref('lastContext');
+    if (last && contexts.some(c => c.id === last)) { ctxSel.value = last; ctxSel.dispatchEvent(new Event('change')); }
+
+    const lastDocs = new Set(pref('lastDocs') || []);
+    $('#doc-checks').innerHTML = docs.length
+      ? docs.map(d => `<label class="check"><input type="checkbox" value="${d.id}" ${lastDocs.has(d.id) ? 'checked' : ''} /> ${esc(d.file_name)}</label>`).join('')
+      : '<span class="muted">No documents yet — <a href="/copilot/library">upload some</a>.</span>';
+
+    const cSel = $('#contact-select');
+    cSel.innerHTML += contacts.map(c => `<option value="${c.id}">${esc(c.name)}${c.company ? ` — ${esc(c.company)}` : ''}</option>`).join('');
+    const preset = new URLSearchParams(location.search).get('contact');
+    if (preset) cSel.value = preset;
+  }
+
+  // =============================================================
+  // AUDIO CAPTURE
+  // =============================================================
+  const audioCtx = () => (state.ac ||= new (window.AudioContext || window.webkitAudioContext)());
+
+  function pickMime() {
+    const types = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4'];
+    return types.find(t => window.MediaRecorder && MediaRecorder.isTypeSupported(t)) || '';
+  }
+
+  // Records an audio-only stream in self-contained ~5 s files (each chunk is a
+  // complete file the transcription API can read), skipping silent chunks.
+  class SourceRecorder {
+    constructor(stream, source) {
+      this.stream = new MediaStream(stream.getAudioTracks());
+      this.source = source;
+      this.mime = pickMime();
+      this.running = false;
+      this.peak = 0;
+      this.inflight = 0;
+
+      const src = audioCtx().createMediaStreamSource(this.stream);
+      this.analyser = audioCtx().createAnalyser();
+      this.analyser.fftSize = 1024;
+      src.connect(this.analyser);
+      this.buf = new Float32Array(this.analyser.fftSize);
+      this.meterEl = $(`#chip-${source} .meter > i`);
+    }
+
+    start() {
+      this.running = true;
+      this.next();
+      this.meterLoop = setInterval(() => this.measure(), 100);
+    }
+
+    measure() {
+      this.analyser.getFloatTimeDomainData(this.buf);
+      let sum = 0;
+      for (let i = 0; i < this.buf.length; i++) sum += this.buf[i] * this.buf[i];
+      const rms = Math.sqrt(sum / this.buf.length);
+      this.peak = Math.max(this.peak, rms);
+      if (this.meterEl) this.meterEl.style.width = `${Math.min(100, rms * 600)}%`;
+    }
+
+    next() {
+      if (!this.running) return;
+      const rec = new MediaRecorder(this.stream, this.mime ? { mimeType: this.mime } : undefined);
+      const parts = [];
+      const t = Date.now();
+      this.peak = 0;
+      rec.ondataavailable = (e) => { if (e.data && e.data.size) parts.push(e.data); };
+      rec.onstop = () => {
+        const peak = this.peak;
+        if (this.running) this.next();
+        const blob = new Blob(parts, { type: rec.mimeType || this.mime || 'audio/webm' });
+        if (peak >= SILENCE_RMS && blob.size > 1500) this.upload(blob, t);
+      };
+      rec.start();
+      this.current = rec;
+      this.stopTimer = setTimeout(() => { if (rec.state !== 'inactive') rec.stop(); }, CHUNK_MS);
+    }
+
+    async upload(blob, t) {
+      if (!state.session) return;
+      if (this.inflight > 3) return; // network too slow — drop rather than lag behind
+      this.inflight++;
+      const form = new FormData();
+      const ext = blob.type.includes('ogg') ? 'ogg' : blob.type.includes('mp4') ? 'mp4' : 'webm';
+      form.append('audio', blob, `chunk.${ext}`);
+      form.append('source', this.source);
+      form.append('t', String(t));
+      try {
+        await api(`/sessions/${state.session.id}/audio`, { method: 'POST', form });
+      } catch (err) {
+        notice(`Audio upload failed (${this.source === 'me' ? 'Me' : 'Them'}): ${err.message}`, 'error');
+      } finally {
+        this.inflight--;
+      }
+    }
+
+    stop() {
+      this.running = false;
+      clearTimeout(this.stopTimer);
+      clearInterval(this.meterLoop);
+      if (this.current && this.current.state !== 'inactive') this.current.stop();
+      if (this.meterEl) this.meterEl.style.width = '0';
+    }
+  }
+
+  async function captureSources({ mic, screen }) {
+    const out = { mic: null, screen: null, warnings: [] };
+    if (mic) {
+      try {
+        out.mic = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+        });
+      } catch (err) {
+        out.warnings.push(`Microphone not available (${err.name}). Continuing without "Me".`);
+      }
+    }
+    if (screen) {
+      try {
+        const s = await navigator.mediaDevices.getDisplayMedia({
+          video: true,
+          audio: {
+            echoCancellation: false,
+            noiseSuppression: false,
+            autoGainControl: false,
+            suppressLocalAudioPlayback: false,
+            // Chrome: keep this page's own playback (earphone TTS) out of the capture
+            restrictOwnAudio: true,
+          },
+          systemAudio: 'include',
+          selfBrowserSurface: 'exclude',
+          surfaceSwitching: 'include',
+        });
+        if (!s.getAudioTracks().length) {
+          s.getTracks().forEach(t => t.stop());
+          out.warnings.push('The shared screen/tab has no audio. Share again and tick "Share tab audio" (or "Share system audio" for the entire screen).');
+        } else {
+          out.screen = s;
+        }
+      } catch (err) {
+        if (err.name !== 'NotAllowedError') out.warnings.push(`Screen share failed (${err.name}).`);
+        else out.warnings.push('Screen share skipped — "Them" will not be captured.');
+      }
+    }
+    return out;
+  }
+
+  async function startCapture(opts) {
+    const cap = await captureSources(opts);
+    cap.warnings.forEach(w => notice(w));
+    if (!cap.mic && !cap.screen) return false;
+    if (audioCtx().state === 'suspended') await audioCtx().resume();
+
+    if (cap.mic) {
+      state.streams.push(cap.mic);
+      const r = new SourceRecorder(cap.mic, 'me');
+      r.start();
+      state.recorders.push(r);
+      setChip('me', true);
+    } else setChip('me', false);
+
+    if (cap.screen) {
+      state.streams.push(cap.screen);
+      const r = new SourceRecorder(cap.screen, 'them');
+      r.start();
+      state.recorders.push(r);
+      setChip('them', true);
+      // User clicked "Stop sharing" in Chrome's bar
+      cap.screen.getAudioTracks()[0].addEventListener('ended', () => {
+        r.stop();
+        setChip('them', false);
+        notice('Screen sharing stopped — "Them" is no longer captured.');
+      });
+    } else setChip('them', false);
+    return true;
+  }
+
+  function stopCapture() {
+    state.recorders.forEach(r => r.stop());
+    state.recorders = [];
+    state.streams.forEach(s => s.getTracks().forEach(t => t.stop()));
+    state.streams = [];
+    setChip('me', false);
+    setChip('them', false);
+  }
+
+  function setChip(source, on) {
+    const chip = $(`#chip-${source}`);
+    chip.style.opacity = on ? '1' : '0.4';
+    chip.title = on ? 'Capturing' : 'Not captured';
+  }
+
+  // =============================================================
+  // LIVE VIEW
+  // =============================================================
+  function notice(msg, type = '') {
+    const box = $('#live-notice');
+    const el = document.createElement('div');
+    el.className = `notice ${type}`;
+    el.innerHTML = `${esc(msg)} <a href="#" style="float:right">dismiss</a>`;
+    el.querySelector('a').addEventListener('click', (e) => { e.preventDefault(); el.remove(); });
+    box.appendChild(el);
+    if (box.children.length > 4) box.firstElementChild.remove();
+  }
+
+  function showLive() {
+    $('#setup-view').classList.add('hidden');
+    $('#live-view').classList.remove('hidden');
+    $('#live-title').textContent = state.session.title;
+    $('#live-dot').className = 'dot on';
+    clearInterval(state.timer);
+    state.timer = setInterval(() => {
+      const s = Math.floor((Date.now() - state.startedAt) / 1000);
+      $('#live-timer').textContent = `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+    }, 1000);
+  }
+
+  function nearBottom(el) {
+    return el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+  }
+
+  function renderTranscript() {
+    const body = $('#p1-body');
+    const stick = nearBottom(body);
+    body.innerHTML = R.transcriptHtml(state.lines);
+    if (stick) body.scrollTop = body.scrollHeight;
+    $('#p1-count').textContent = `${state.lines.length} line${state.lines.length === 1 ? '' : 's'}`;
+    state.targets.forEach(t => t.render());
+  }
+
+  function renderPanel2() {
+    $('#p2-body').innerHTML = R.panel2Html(state.panel2, state.done);
+    $('#p2-at').textContent = state.panel2?.at ? `Updated ${new Date(state.panel2.at).toLocaleTimeString('en-GB')}` : '';
+    state.targets.forEach(t => t.render());
+  }
+
+  function renderPanel3() {
+    $('#p3-body').innerHTML = R.panel3Html(state.panel3);
+    $('#p3-at').textContent = state.panel3?.at ? `Updated ${new Date(state.panel3.at).toLocaleTimeString('en-GB')}` : '';
+    state.targets.forEach(t => t.render());
+  }
+
+  // Checklist ticks (main page + pop-out share this handler)
+  function onActionToggle(e) {
+    const cb = e.target.closest('[data-action]');
+    if (!cb) return;
+    if (cb.checked) state.done.add(cb.dataset.action); else state.done.delete(cb.dataset.action);
+    renderPanel2();
+  }
+  document.addEventListener('change', onActionToggle);
+
+  function upsertLine(line) {
+    const idx = state.lines.findIndex(l => l.id === line.id);
+    if (idx !== -1) state.lines[idx] = line;
+    else {
+      const at = state.lines.findIndex(l => l.t > line.t);
+      if (at === -1) state.lines.push(line); else state.lines.splice(at, 0, line);
+    }
+    renderTranscript();
+  }
+
+  function connectSocket() {
+    if (state.socket) state.socket.disconnect();
+    const socket = io('/copilot', { withCredentials: true, transports: ['websocket', 'polling'] });
+    state.socket = socket;
+    const join = () => socket.emit('session:join', { id: state.session.id }, (res) => {
+      if (!res?.ok) return notice('This session is no longer live on the server.', 'error');
+      const snap = res.snapshot;
+      // Merge lines we may have missed while disconnected
+      snap.transcript.forEach(l => { if (!state.lines.some(x => x.id === l.id)) state.lines.push(l); });
+      state.lines.sort((a, b) => a.t - b.t);
+      if (snap.panel2) state.panel2 = snap.panel2;
+      if (snap.panel3) state.panel3 = snap.panel3;
+      renderTranscript(); renderPanel2(); renderPanel3();
+    });
+    socket.on('connect', join);
+    socket.on('connect_error', (err) => {
+      if (err.message === 'unauthorized') location.href = '/copilot/login?next=' + encodeURIComponent(location.pathname + location.search);
+    });
+    socket.on('copilot:line', (line) => {
+      upsertLine(line);
+      if (line.translated) Speaker.onLine(line);
+    });
+    socket.on('copilot:panel2', (p) => { state.panel2 = p; renderPanel2(); Speaker.onPanel(2, p); });
+    socket.on('copilot:panel3', (p) => { state.panel3 = p; renderPanel3(); Speaker.onPanel(3, p); });
+    socket.on('copilot:analyzing', ({ on }) => { $('#analyzing').style.display = on ? '' : 'none'; });
+    socket.on('copilot:error', ({ message }) => notice(message, 'error'));
+  }
+
+  // =============================================================
+  // START / RESUME / STOP
+  // =============================================================
+  async function start() {
+    const btn = $('#start-btn');
+    const mic = $('#use-mic').checked;
+    const screen = $('#use-screen').checked;
+    if (!mic && !screen) return toast('Choose at least one audio source', 'error');
+    if (!window.MediaRecorder) return toast('This browser cannot record audio. Use Chrome or Edge on desktop.', 'error');
+
+    btn.disabled = true;
+    btn.textContent = 'Starting…';
+    const docIds = [...document.querySelectorAll('#doc-checks input:checked')].map(i => i.value);
+    pref('lastDocs', docIds);
+    pref('myLanguage', $('#my-lang').value);
+    pref('theirLanguage', $('#their-lang').value);
+
+    // Ask for devices first (user gesture), then create the session
+    state.startedAt = Date.now();
+    const okCapture = await startCapture({ mic, screen });
+    if (!okCapture) {
+      btn.disabled = false;
+      btn.textContent = '● Start session';
+      $('#setup-view').insertAdjacentHTML('afterbegin', `<div class="notice error">No audio source could be captured. ${[...document.querySelectorAll('#live-notice .notice')].map(n => esc(n.textContent.replace('dismiss', ''))).join(' ')}</div>`);
+      $('#live-notice').innerHTML = '';
+      return;
+    }
+    try {
+      state.session = await api('/sessions', {
+        method: 'POST',
+        body: {
+          title: $('#title').value,
+          context_id: $('#context-select').value || null,
+          context_text: $('#context-text').value,
+          document_ids: docIds,
+          contact_id: $('#contact-select').value || null,
+          my_language: $('#my-lang').value,
+          their_language: $('#their-lang').value,
+          sources: { mic, screen },
+        },
+      });
+    } catch (err) {
+      stopCapture();
+      btn.disabled = false;
+      btn.textContent = '● Start session';
+      return toast(err.message, 'error');
+    }
+    history.replaceState(null, '', `/copilot/session?id=${state.session.id}`);
+    showLive();
+    connectSocket();
+  }
+
+  async function resume() {
+    const ok = await startCapture({ mic: true, screen: true });
+    if (ok) $('#resume-btn').style.display = 'none';
+  }
+
+  async function stop() {
+    if (!confirm('Stop and save this session?')) return;
+    $('#stop-btn').disabled = true;
+    stopCapture();
+    Speaker.stopAll();
+    clearInterval(state.timer);
+    $('#live-dot').className = 'dot';
+    closePopout();
+    $('#live-view').classList.add('hidden');
+    $('#ended-view').classList.remove('hidden');
+    $('#ended-open').href = `/copilot/history?id=${state.session.id}`;
+    try {
+      const res = await api(`/sessions/${state.session.id}/stop`, { method: 'POST' });
+      const f = res.summaries?.final;
+      $('#ended-summary').innerHTML = f
+        ? `<p>${esc(f.summary)}</p>${f.next_steps?.length ? `<div class="section-label">Next steps</div><ul class="qlist">${f.next_steps.map(s => `<li>${esc(s)}</li>`).join('')}</ul>` : ''}`
+        : '<p class="muted">Session saved (no summary — the transcript was empty or the AI was unavailable).</p>';
+    } catch (err) {
+      $('#ended-summary').innerHTML = `<p class="notice error">${esc(err.message)}</p>`;
+    }
+    state.session = null;
+    if (state.socket) state.socket.disconnect();
+  }
+
+  // Reopen a live session after a reload (audio capture must be restarted)
+  async function reopen(id) {
+    let s;
+    try {
+      s = await api(`/sessions/${id}`);
+    } catch (err) {
+      return toast(err.message, 'error');
+    }
+    if (!s.live) {
+      location.href = `/copilot/history?id=${id}`;
+      return;
+    }
+    state.session = s;
+    state.lines = s.transcript || [];
+    state.panel2 = s.panel2;
+    state.panel3 = s.panel3;
+    state.startedAt = new Date(s.started_at).getTime();
+    showLive();
+    renderTranscript(); renderPanel2(); renderPanel3();
+    setChip('me', false); setChip('them', false);
+    $('#resume-btn').style.display = '';
+    notice('Page was reloaded — click "Resume audio capture" to continue listening.', 'info');
+    connectSocket();
+  }
+
+  // =============================================================
+  // EARPHONE PLAYBACK (TTS)
+  // =============================================================
+  const Speaker = (() => {
+    const audio = new Audio();
+    const queue = [];
+    let panel = Number(pref('speakPanel') || 0);
+    let muted = false;
+    let paused = false;
+    let busy = false;
+    let last = null; // { text, url }
+    const spoken2 = new Set();
+    const spoken3 = new Set();
+
+    function status(msg) {
+      $('#pb-status').textContent = msg;
+      state.targets.forEach(t => t.status && t.status(msg));
+    }
+
+    function highlight() {
+      document.querySelectorAll('.panel').forEach(p => p.classList.toggle('speaking', Number(p.dataset.panel) === panel));
+    }
+
+    async function fetchAudio(text) {
+      const res = await fetch('/api/copilot/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ text }),
+      });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'TTS failed');
+      return URL.createObjectURL(await res.blob());
+    }
+
+    async function pump() {
+      if (busy || paused || muted || !queue.length) return;
+      busy = true;
+      const text = queue.shift();
+      try {
+        status('Preparing audio…');
+        const url = await fetchAudio(text);
+        if (last?.url) URL.revokeObjectURL(last.url);
+        last = { text, url };
+        if (muted) { busy = false; return; }
+        audio.src = url;
+        await audio.play();
+        status('Speaking…');
+      } catch (err) {
+        status(`Playback error: ${err.message}`);
+        busy = false;
+        pump();
+      }
+    }
+
+    audio.addEventListener('ended', () => { busy = false; status(queue.length ? '' : 'Idle'); pump(); });
+    audio.addEventListener('pause', () => { if (!audio.ended && paused) status('Paused'); });
+
+    function enqueue(text) {
+      if (!panel || muted || !text) return;
+      queue.push(text);
+      while (queue.length > 3) queue.shift(); // stay current, drop stale items
+      pump();
+    }
+
+    return {
+      get panel() { return panel; },
+      get muted() { return muted; },
+      setPanel(n) {
+        panel = Number(n);
+        pref('speakPanel', panel);
+        queue.length = 0;
+        // Do not read old content when switching panel — only new content from now on
+        if (panel === 2) R.panel2Speech(state.panel2, spoken2);
+        if (panel === 3) R.panel3Speech(state.panel3, spoken3);
+        highlight();
+        status(panel ? 'Waiting for new content…' : 'Off');
+        state.targets.forEach(t => t.render());
+      },
+      onLine(line) {
+        if (panel !== 1 || line.source !== 'them') return;
+        enqueue(line.translation || line.text);
+      },
+      onPanel(n, p) {
+        if (n === 2) { const t = R.panel2Speech(p, spoken2); if (panel === 2) enqueue(t); }
+        if (n === 3) { const t = R.panel3Speech(p, spoken3); if (panel === 3) enqueue(t); }
+      },
+      play() {
+        paused = false;
+        if (audio.src && audio.paused && !audio.ended && busy) { audio.play(); status('Speaking…'); } else pump();
+      },
+      pause() {
+        paused = true;
+        audio.pause();
+        status('Paused');
+      },
+      replay() {
+        if (!last) return status('Nothing to replay yet');
+        paused = false;
+        queue.length = 0;
+        audio.src = last.url;
+        busy = true;
+        audio.play().then(() => status('Replaying…')).catch(() => { busy = false; });
+      },
+      toggleMute() {
+        muted = !muted;
+        if (muted) { queue.length = 0; audio.pause(); busy = false; }
+        status(muted ? 'Muted' : 'Unmuted');
+        $('#pb-mute').textContent = muted ? '🔈 Unmute' : '🔇 Mute';
+        state.targets.forEach(t => t.render());
+      },
+      stopAll() { queue.length = 0; audio.pause(); busy = false; },
+      async setSink(id) {
+        if (audio.setSinkId) await audio.setSinkId(id).catch(() => toast('Could not switch output device', 'error'));
+      },
+      init() {
+        $('#speak-panel').value = String(panel);
+        highlight();
+        status(panel ? 'Waiting for new content…' : 'Off');
+      },
+    };
+  })();
+
+  // Output device picker (Chrome supports setSinkId)
+  async function initSinks() {
+    if (!('setSinkId' in HTMLMediaElement.prototype) || !navigator.mediaDevices?.enumerateDevices) return;
+    const devices = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'audiooutput');
+    if (devices.length < 2 || !devices.some(d => d.label)) return;
+    const sel = $('#sink-select');
+    sel.innerHTML = devices.map(d => `<option value="${esc(d.deviceId)}">${esc(d.label || 'Output')}</option>`).join('');
+    sel.classList.remove('hidden');
+    sel.addEventListener('change', () => Speaker.setSink(sel.value));
+  }
+
+  $('#speak-panel').addEventListener('change', (e) => Speaker.setPanel(e.target.value));
+  $('#pb-play').addEventListener('click', () => Speaker.play());
+  $('#pb-pause').addEventListener('click', () => Speaker.pause());
+  $('#pb-replay').addEventListener('click', () => Speaker.replay());
+  $('#pb-mute').addEventListener('click', () => Speaker.toggleMute());
+
+  // =============================================================
+  // POP-OUT WINDOW
+  // =============================================================
+  let popout = null;
+
+  function buildPopout(win, isPip) {
+    const doc = win.document;
+    doc.title = 'Sales Copilot';
+    const link = doc.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = new URL('/copilot/assets/copilot.css', location.href).href;
+    doc.head.appendChild(link);
+    doc.body.className = 'pip';
+    doc.body.innerHTML = `
+      <div class="pip-wrap">
+        <div class="pip-tabs">
+          <button data-tab="1">1 · Transcript</button>
+          <button data-tab="2">2 · They ask</button>
+          <button data-tab="3">3 · Replies</button>
+        </div>
+        ${isPip ? '' : '<div class="notice" style="margin:6px;font-size:0.75rem">Always-on-top is not available in this browser (needs Chrome/Edge 116+). This is a normal popup window.</div>'}
+        <div class="pip-body" id="pip-body"></div>
+        <div class="pip-controls">
+          <select id="pip-speak">
+            <option value="0">🎧 Off</option><option value="1">🎧 Panel 1</option><option value="2">🎧 Panel 2</option><option value="3">🎧 Panel 3</option>
+          </select>
+          <button id="pip-play">▶</button><button id="pip-pause">❚❚</button><button id="pip-replay">↺</button><button id="pip-mute">🔇</button>
+          <span class="small muted" id="pip-status"></span>
+        </div>
+      </div>`;
+
+    let tab = Number(pref('pipTab') || 3);
+    const body = doc.getElementById('pip-body');
+    const target = {
+      render() {
+        doc.querySelectorAll('[data-tab]').forEach(b => b.classList.toggle('active', Number(b.dataset.tab) === tab));
+        const stick = nearBottom(body);
+        if (tab === 1) body.innerHTML = R.transcriptHtml(state.lines, { limit: 60 });
+        if (tab === 2) body.innerHTML = R.panel2Html(state.panel2, state.done);
+        if (tab === 3) body.innerHTML = R.panel3Html(state.panel3);
+        if (tab === 1 && stick) body.scrollTop = body.scrollHeight;
+        doc.getElementById('pip-speak').value = String(Speaker.panel);
+        doc.getElementById('pip-mute').textContent = Speaker.muted ? '🔈' : '🔇';
+      },
+      status(msg) { doc.getElementById('pip-status').textContent = msg; },
+    };
+
+    doc.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => {
+      tab = Number(b.dataset.tab);
+      pref('pipTab', tab);
+      target.render();
+      if (tab === 1) body.scrollTop = body.scrollHeight;
+    }));
+    doc.getElementById('pip-speak').addEventListener('change', (e) => { Speaker.setPanel(e.target.value); $('#speak-panel').value = e.target.value; });
+    doc.getElementById('pip-play').addEventListener('click', () => Speaker.play());
+    doc.getElementById('pip-pause').addEventListener('click', () => Speaker.pause());
+    doc.getElementById('pip-replay').addEventListener('click', () => Speaker.replay());
+    doc.getElementById('pip-mute').addEventListener('click', () => Speaker.toggleMute());
+    // Copy buttons + checklist inside the pop-out
+    doc.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-copy]');
+      if (btn) Copilot.copyText(btn.dataset.copy, btn);
+    });
+    doc.addEventListener('change', onActionToggle);
+
+    state.targets.add(target);
+    target.render();
+    win.addEventListener('pagehide', () => { state.targets.delete(target); popout = null; });
+    return target;
+  }
+
+  async function openPopout() {
+    if (popout && !popout.closed) { popout.focus(); return; }
+    if ('documentPictureInPicture' in window) {
+      try {
+        popout = await window.documentPictureInPicture.requestWindow({ width: 380, height: 560 });
+        buildPopout(popout, true);
+        return;
+      } catch (err) {
+        toast(`Picture-in-Picture failed (${err.message}) — opening a normal popup.`, 'error');
+      }
+    } else {
+      toast('This browser does not support always-on-top windows (Document Picture-in-Picture, Chrome/Edge 116+). Opening a normal popup instead.', 'error');
+    }
+    popout = window.open('', 'copilot-popout', 'width=400,height=620');
+    if (!popout) return toast('Pop-up blocked. Allow pop-ups for this site and try again.', 'error');
+    popout.document.open();
+    popout.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"></head><body></body></html>');
+    popout.document.close();
+    buildPopout(popout, false);
+  }
+
+  function closePopout() {
+    if (popout && !popout.closed) popout.close();
+    popout = null;
+    state.targets.clear();
+  }
+
+  $('#popout-btn').addEventListener('click', openPopout);
+
+  // =============================================================
+  // WIRING
+  // =============================================================
+  $('#start-btn').addEventListener('click', start);
+  $('#stop-btn').addEventListener('click', stop);
+  $('#resume-btn').addEventListener('click', resume);
+  $('#refresh-btn').addEventListener('click', () => {
+    if (!state.session) return;
+    api(`/sessions/${state.session.id}/analyze`, { method: 'POST' }).catch(err => toast(err.message, 'error'));
+  });
+  window.addEventListener('beforeunload', (e) => {
+    if (state.session && state.recorders.length) { e.preventDefault(); e.returnValue = ''; }
+  });
+
+  Speaker.init();
+  initSinks().catch(() => {});
+
+  const reopenId = new URLSearchParams(location.search).get('id');
+  if (reopenId) {
+    loadSetup().catch(() => {});
+    reopen(reopenId);
+  } else {
+    loadSetup().catch(err => toast(err.message, 'error'));
+  }
+})();

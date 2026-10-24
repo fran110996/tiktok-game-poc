@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>History — Sales Copilot</title>
+  <link rel="stylesheet" href="/copilot/assets/copilot.css" />
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="nav"></aside>
+  <main class="main">
+    <section id="list-view">
+      <div class="page-head">
+        <div>
+          <h1>History</h1>
+          <p>Past meetings and reply-assistant drafts.</p>
+        </div>
+        <div class="row">
+          <select id="kind-filter" style="width:auto">
+            <option value="">All</option>
+            <option value="meeting">Meetings</option>
+            <option value="reply">Replies</option>
+          </select>
+        </div>
+      </div>
+      <div class="card"><div class="list" id="session-list"><div class="empty">Loading…</div></div></div>
+    </section>
+
+    <section id="detail-view" class="hidden">
+      <div class="page-head">
+        <div>
+          <a href="/copilot/history" class="small">← All history</a>
+          <h1 id="d-title">Session</h1>
+          <p id="d-meta"></p>
+        </div>
+        <div class="row">
+          <button class="btn-ghost btn-sm" id="d-copy">Copy transcript</button>
+          <button class="btn-danger btn-sm" id="d-delete">Delete</button>
+        </div>
+      </div>
+      <div id="d-body"></div>
+    </section>
+  </main>
+</div>
+<script src="/copilot/assets/common.js"></script>
+<script src="/copilot/assets/render.js"></script>
+<script src="/copilot/assets/history.js"></script>
+</body>
+</html>

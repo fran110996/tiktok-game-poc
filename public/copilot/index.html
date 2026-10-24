@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sales Copilot</title>
+  <link rel="stylesheet" href="/copilot/assets/copilot.css" />
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="nav"></aside>
+  <main class="main">
+    <div class="page-head">
+      <div>
+        <h1 id="greeting">Welcome</h1>
+        <p id="today"></p>
+      </div>
+    </div>
+
+    <div class="grid grid-3">
+      <a class="card" href="/copilot/session" style="color:inherit;text-decoration:none;border-color:#155c35">
+        <h2 style="color:var(--green)">● Start a meeting</h2>
+        <p class="muted small">Live transcript, translation, what they ask for and suggested replies — with earphone playback and a floating window.</p>
+      </a>
+      <a class="card" href="/copilot/reply" style="color:inherit;text-decoration:none;border-color:#0f4a5a">
+        <h2>✉ Reply to a message</h2>
+        <p class="muted small">Paste an email or chat from LINE, WhatsApp, LinkedIn… and get 2–3 drafts to copy.</p>
+      </a>
+      <a class="card" href="/copilot/library" style="color:inherit;text-decoration:none">
+        <h2>❏ Context & documents</h2>
+        <p class="muted small">Tell the copilot who you are and upload price lists, catalogues and presentations.</p>
+      </a>
+    </div>
+
+    <div class="grid grid-2">
+      <div class="card">
+        <h2>Upcoming <a class="small" href="/copilot/upcoming">See all →</a></h2>
+        <div class="list" id="home-upcoming"><div class="empty">Loading…</div></div>
+      </div>
+      <div class="card">
+        <h2>Morning summary <a class="small" href="/copilot/monitor">Open →</a></h2>
+        <div id="home-monitor"><div class="empty">Loading…</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Recent <a class="small" href="/copilot/history">History →</a></h2>
+      <div class="list" id="home-recent"><div class="empty">Loading…</div></div>
+    </div>
+  </main>
+</div>
+<script src="/copilot/assets/common.js"></script>
+<script src="/copilot/assets/home.js"></script>
+</body>
+</html>

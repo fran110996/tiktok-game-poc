@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign in — Sales Copilot</title>
+  <link rel="stylesheet" href="/copilot/assets/copilot.css" />
+</head>
+<body>
+  <div class="login-wrap">
+    <form class="card login-card" id="login-form">
+      <div class="brand"><div class="brand-mark">SC</div><div>SALES COPILOT</div></div>
+      <div class="field">
+        <label for="email">Email</label>
+        <input type="email" id="email" autocomplete="username" required autofocus />
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input type="password" id="password" autocomplete="current-password" required />
+      </div>
+      <div id="login-error" class="notice error hidden"></div>
+      <button class="btn-primary btn-lg" style="width:100%;justify-content:center" type="submit" id="login-btn">Sign in</button>
+    </form>
+  </div>
+  <script>
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('login-btn');
+      const errBox = document.getElementById('login-error');
+      btn.disabled = true;
+      errBox.classList.add('hidden');
+      try {
+        const res = await fetch('/api/copilot/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({ email: document.getElementById('email').value, password: document.getElementById('password').value }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'Sign in failed');
+        const next = new URLSearchParams(location.search).get('next') || '/copilot';
+        // Only allow same-site copilot paths as redirect targets
+        location.href = /^\/copilot(\/|$|\?)/.test(next) ? next : '/copilot';
+      } catch (err) {
+        errBox.textContent = err.message;
+        errBox.classList.remove('hidden');
+        btn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

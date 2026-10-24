@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Contacts — Sales Copilot</title>
+  <link rel="stylesheet" href="/copilot/assets/copilot.css" />
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="nav"></aside>
+  <main class="main">
+    <section id="list-view">
+      <div class="page-head">
+        <div>
+          <h1>Contacts</h1>
+          <p>People you meet and message. Their details are used in meeting and reply suggestions.</p>
+        </div>
+        <div class="row">
+          <input type="search" id="search" placeholder="Search…" style="width:200px" />
+          <select id="tag-filter" style="width:auto"><option value="">All tags</option></select>
+          <button class="btn-primary" id="new-contact">+ New contact</button>
+        </div>
+      </div>
+      <div class="card"><div class="list" id="contact-list"><div class="empty">Loading…</div></div></div>
+    </section>
+
+    <section id="detail-view" class="hidden">
+      <div class="page-head">
+        <div>
+          <a href="/copilot/contacts" class="small">← All contacts</a>
+          <h1 id="c-name">Contact</h1>
+          <p id="c-sub"></p>
+        </div>
+        <div class="row">
+          <a class="btn btn-go btn-sm" id="c-meet">● Start session</a>
+          <a class="btn btn-primary btn-sm" id="c-reply">✉ Draft a reply</a>
+          <button class="btn-ghost btn-sm" id="c-edit">Edit</button>
+          <button class="btn-danger btn-sm" id="c-delete">Delete</button>
+        </div>
+      </div>
+      <div class="grid grid-2">
+        <div class="card"><h2>Details</h2><div id="c-details"></div></div>
+        <div class="card"><h2>Events <button class="btn-primary btn-sm" id="c-add-event">+ Add event</button></h2><div class="list" id="c-events"></div></div>
+      </div>
+      <div class="card"><h2>History</h2><div class="list" id="c-history"></div></div>
+    </section>
+  </main>
+</div>
+<script src="/copilot/assets/common.js"></script>
+<script src="/copilot/assets/contacts.js"></script>
+</body>
+</html>
