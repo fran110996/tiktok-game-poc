@@ -104,7 +104,7 @@ For lunches, office visits and events, without Zoom or Meet:
 3. Put the phone between you, screen up, and keep the page open.
 4. On a phone, the three panels are tabs: **1 · Transcript**, **2 · They ask**, **3 · Replies**.
 
-One microphone hears both people, so the AI guesses the speaker. Lines show **ME?**, **THEM?** or **VOICE** when it cannot tell. Panels 2 and 3 work the same as in online meetings.
+One microphone hears both people, so the AI guesses the speaker. Lines show **ME?** or **THEM?**, or **UNCERTAIN** when it cannot tell. Tap a label to correct it, live or later in History. Panels 2 and 3 work the same as in online meetings.
 
 ### Follow on another device
 

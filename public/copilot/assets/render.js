@@ -6,11 +6,14 @@ const CopilotRender = (() => {
   const { esc, fmtTime, sourcesHtml, uncertainTag, uncertainNote } = Copilot;
 
   // In-person mode (one microphone): speaker is a guess, shown with "?"
+  // Tapping a label corrects it (data-fix); corrected labels lose the "?"
   function whoHtml(l) {
-    if (l.source !== 'room') return `<span class="who ${l.source}">${l.source === 'me' ? 'ME' : 'THEM'}</span>`;
-    if (l.speaker === 'me') return '<span class="who me guess" title="Guessed by the AI">ME?</span>';
-    if (l.speaker === 'them') return '<span class="who them guess" title="Guessed by the AI">THEM?</span>';
-    return '<span class="who voice">VOICE</span>';
+    const fix = l.id ? ` data-fix="${esc(l.id)}" title="Tap to correct who is speaking"` : '';
+    if (l.source !== 'room') return `<span class="who ${l.source}"${fix}>${l.source === 'me' ? 'ME' : 'THEM'}</span>`;
+    const q = l.corrected ? '' : '?';
+    if (l.speaker === 'me') return `<span class="who me ${q ? 'guess' : ''}"${fix}>ME${q}</span>`;
+    if (l.speaker === 'them') return `<span class="who them ${q ? 'guess' : ''}"${fix}>THEM${q}</span>`;
+    return `<span class="who voice"${fix}>UNCERTAIN</span>`;
   }
 
   function lineHtml(l) {
@@ -80,5 +83,18 @@ const CopilotRender = (() => {
     return p.uncertain ? `${text}. Careful, this is uncertain.` : text;
   }
 
-  return { whoHtml, lineHtml, transcriptHtml, panel2Html, panel3Html, panel2Speech, panel3Speech };
+  // Next label when the user taps it: ME → THEM → UNCERTAIN (meeting: ME ↔ THEM)
+  function nextSpeaker(l) {
+    const cur = l.source === 'room' ? (l.speaker || 'unknown') : l.source;
+    if (l.source !== 'room') return cur === 'me' ? 'them' : 'me';
+    return { me: 'them', them: 'unknown', unknown: 'me' }[cur] || 'me';
+  }
+
+  // Sends the correction; returns the updated line
+  async function correctLine(sessionId, l) {
+    const res = await Copilot.api(`/sessions/${sessionId}/lines/${l.id}`, { method: 'PUT', body: { speaker: nextSpeaker(l) } });
+    return res.line;
+  }
+
+  return { whoHtml, lineHtml, transcriptHtml, correctLine, panel2Html, panel3Html, panel2Speech, panel3Speech };
 })();

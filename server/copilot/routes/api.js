@@ -176,6 +176,26 @@ router.post('/sessions/:id/audio', (req, res, next) => {
   return { ok: true, line };
 }));
 
+// Correct who said a transcript line (live or saved session)
+router.put('/sessions/:id/lines/:lineId', handle(async (req) => {
+  const who = req.body?.speaker;
+  if (!['me', 'them', 'unknown'].includes(who)) throw httpError(400, 'speaker must be me, them or unknown');
+  const s = live.get(req.params.id, uid(req));
+  if (s) {
+    const line = live.correctSpeaker(s, req.params.lineId, who);
+    if (!line) throw httpError(404, 'Line not found');
+    return { ok: true, line };
+  }
+  const row = await store.get('copilot_sessions', uid(req), req.params.id);
+  if (!row) throw httpError(404, 'Not found');
+  const transcript = row.transcript || [];
+  const line = transcript.find(l => l.id === req.params.lineId);
+  if (!line) throw httpError(404, 'Line not found');
+  live.applySpeaker(line, who);
+  await store.update('copilot_sessions', uid(req), row.id, { transcript });
+  return { ok: true, line };
+}));
+
 router.post('/sessions/:id/analyze', handle(async (req) => {
   const s = live.get(req.params.id, uid(req));
   if (!s) throw httpError(404, 'Session is not live');

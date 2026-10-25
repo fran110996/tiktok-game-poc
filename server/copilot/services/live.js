@@ -256,6 +256,23 @@ class LiveSessions {
     return line;
   }
 
+  // Manual correction of a speaker label. Meeting lines switch source
+  // (me/them); in-person lines set the speaker. Marked as corrected.
+  applySpeaker(line, who) {
+    if (line.source === 'room') line.speaker = who;
+    else if (who !== 'unknown') line.source = who;
+    line.corrected = true;
+    return line;
+  }
+
+  correctSpeaker(s, lineId, who) {
+    const line = s.transcript.find(l => l.id === lineId);
+    if (!line) return null;
+    this.applySpeaker(line, who);
+    this.emit(s, 'copilot:line', line);
+    return line;
+  }
+
   insertLine(s, line) {
     const idx = s.transcript.findIndex(l => l.t > line.t);
     if (idx === -1) s.transcript.push(line);
@@ -266,7 +283,9 @@ class LiveSessions {
     const lines = s.transcript.map(l => {
       const ts = new Date(l.t).toISOString().slice(11, 19);
       const who = l.source === 'room'
-        ? `VOICE (${l.speaker === 'me' ? 'probably ME' : l.speaker === 'them' ? 'probably THEM' : 'speaker unknown'})`
+        ? (l.corrected && l.speaker !== 'unknown'
+          ? (l.speaker === 'me' ? 'ME' : 'THEM')
+          : `VOICE (${l.speaker === 'me' ? 'probably ME' : l.speaker === 'them' ? 'probably THEM' : 'speaker unknown'})`)
         : l.source === 'me' ? 'ME' : 'THEM';
       return `[${ts}] ${who}: ${l.text}${l.translation ? `  (translation: ${l.translation})` : ''}`;
     });

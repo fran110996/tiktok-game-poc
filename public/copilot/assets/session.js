@@ -249,7 +249,7 @@
 
     $('#chip-me-label').textContent = room ? 'Voices' : 'Me';
     $('#chip-them').classList.toggle('hidden', room);
-    $('#p1-legend').textContent = room ? 'One microphone · ME? / THEM? are AI guesses' : 'Me = microphone · Them = shared audio';
+    $('#p1-legend').textContent = room ? 'One microphone · ME? / THEM? are AI guesses — tap a label to fix it' : 'Me = microphone · Them = shared audio';
 
     if (cap.mic) {
       state.streams.push(cap.mic);
@@ -348,6 +348,20 @@
     renderPanel2();
   }
   document.addEventListener('change', onActionToggle);
+
+  // Tap a ME / THEM / UNCERTAIN label to correct it (main page + pop-out)
+  async function onFixSpeaker(e) {
+    const tag = e.target.closest('[data-fix]');
+    if (!tag || !state.session) return;
+    const line = state.lines.find(l => l.id === tag.dataset.fix);
+    if (!line) return;
+    try {
+      upsertLine(await R.correctLine(state.session.id, line));
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+  }
+  document.addEventListener('click', onFixSpeaker);
 
   function upsertLine(line) {
     const idx = state.lines.findIndex(l => l.id === line.id);
@@ -883,6 +897,7 @@
       if (btn) Copilot.copyText(btn.dataset.copy, btn);
     });
     doc.addEventListener('change', onActionToggle);
+    doc.addEventListener('click', onFixSpeaker);
 
     state.targets.add(target);
     target.render();

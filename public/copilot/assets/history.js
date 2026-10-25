@@ -29,7 +29,7 @@
   }
 
   function transcriptPlain(s) {
-    const who = (l) => (l.source === 'room' ? (l.speaker === 'me' ? 'ME?' : l.speaker === 'them' ? 'THEM?' : 'VOICE') : l.source === 'me' ? 'ME' : 'THEM');
+    const who = (l) => (l.source === 'room' ? (l.speaker === 'me' ? 'ME?' : l.speaker === 'them' ? 'THEM?' : 'UNCERTAIN') : l.source === 'me' ? 'ME' : 'THEM');
     return (s.transcript || []).map(l => `[${l.t ? new Date(l.t).toLocaleTimeString('en-GB') : ''}] ${who(l)}: ${l.text}${l.translation ? `\n    → ${l.translation}` : ''}`).join('\n');
   }
 
@@ -82,6 +82,19 @@
     $('#d-title').textContent = s.title || 'Untitled';
     $('#d-meta').innerHTML = `${s.kind === 'reply' ? (s.settings?.channel === 'screen' ? 'Read my screen' : 'Reply assistant') : (s.settings?.mode === 'room' ? 'In-person conversation' : 'Online meeting')} · ${fmtDateTime(s.started_at)}${s.ended_at && s.kind === 'meeting' ? ` → ${new Date(s.ended_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}` : ''}${c ? ` · <a href="/copilot/contacts?id=${c.id}">${esc(c.name)}</a>` : ''}${s.status === 'live' ? ' · <span class="tag">Interrupted (server restarted before Stop)</span>' : ''}`;
     $('#d-body').innerHTML = s.kind === 'reply' ? replyHtml(s) : meetingHtml(s);
+    // Tap a speaker label in the saved transcript to correct it
+    $('#d-body').onclick = async (e) => {
+      const tag = e.target.closest('[data-fix]');
+      if (!tag || s.kind === 'reply') return;
+      const idx = (s.transcript || []).findIndex(l => l.id === tag.dataset.fix);
+      if (idx === -1) return;
+      try {
+        s.transcript[idx] = await R.correctLine(s.id, s.transcript[idx]);
+        $('#d-body').innerHTML = meetingHtml(s);
+      } catch (err) {
+        toast(err.message, 'error');
+      }
+    };
     $('#d-copy').style.display = s.kind === 'reply' ? 'none' : '';
     $('#d-copy').onclick = (e) => Copilot.copyText(transcriptPlain(s), e.currentTarget);
     $('#d-delete').onclick = async () => {
