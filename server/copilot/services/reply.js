@@ -46,7 +46,10 @@ const REPLY_SCHEMA = {
 async function generateReply(userId, input) {
   const channel = CHANNEL_STYLES[input.channel] ? input.channel : 'other';
   const conversation = String(input.text || '').slice(0, 20000).trim();
-  if (!conversation) throw Object.assign(new Error('Paste the conversation or email first'), { status: 400 });
+  const note = String(input.note || '').slice(0, 2000).trim();
+  if (!conversation && !note) throw Object.assign(new Error('Paste a conversation, or describe the new message you want in the note'), { status: 400 });
+  // No pasted conversation → write a new one-to-one message from the note
+  const isNew = !conversation;
 
   const myLang = languageName(input.my_language || 'en');
   const replyLang = input.reply_language && input.reply_language !== 'auto'
@@ -60,7 +63,7 @@ async function generateReply(userId, input) {
   });
 
   const out = await ai.respond({
-    system: `You help ME (the user) reply to a message on ${channel.toUpperCase()}.
+    system: `You help ME (the user) ${isNew ? 'write a NEW personal message (no previous conversation)' : 'reply to a message'} on ${channel.toUpperCase()}.
 Channel style: ${CHANNEL_STYLES[channel]}
 - "summary" (in ${myLang}): what they want, 1–3 sentences.
 - "wants" (in ${myLang}): their requests/questions as short bullet items.
@@ -70,7 +73,7 @@ Channel style: ${CHANNEL_STYLES[channel]}
 - Use web search only when a public fact is needed. Never guess my own prices, stock or policies: if they are missing, write a placeholder like [confirm price] in the draft and set uncertain=true.
 - "sources": every web page you relied on (title + url). Empty array if none.
 ${HONESTY_RULES}`,
-    input: `BACKGROUND:\n${backgroundBlock(bg, conversation.slice(-3000))}\n\nMY NOTE: ${input.note || '(none)'}\n\nCONVERSATION / EMAIL:\n${conversation}`,
+    input: `BACKGROUND:\n${backgroundBlock(bg, (conversation || note).slice(-3000))}\n\nMY NOTE: ${note || '(none)'}\n\n${isNew ? 'NO PREVIOUS CONVERSATION: write a new message based on my note. "summary" = what the message should achieve; "wants" = empty array; "detected_language" = the language you write in.' : `CONVERSATION / EMAIL:\n${conversation}`}`,
     schema: REPLY_SCHEMA,
     schemaName: 'reply',
     webSearch: true,
@@ -90,7 +93,7 @@ ${HONESTY_RULES}`,
   };
   if (result.sources.some(s => !s.verified)) result.uncertain = true;
 
-  const firstLine = conversation.split('\n').find(l => l.trim()) || '';
+  const firstLine = (conversation || `New message: ${note}`).split('\n').find(l => l.trim()) || '';
   const row = await store.insert('copilot_sessions', userId, {
     kind: 'reply',
     title: `${channel.toUpperCase()} reply${bg.contact ? ` to ${bg.contact.name}` : ''}: ${firstLine.slice(0, 60)}`,
@@ -99,7 +102,7 @@ ${HONESTY_RULES}`,
     settings: { channel, note: input.note || '', my_language: input.my_language || 'en', reply_language: input.reply_language || 'auto', document_ids: input.document_ids || [] },
     started_at: new Date().toISOString(),
     ended_at: new Date().toISOString(),
-    transcript: [{ source: 'them', text: conversation }],
+    transcript: conversation ? [{ source: 'them', text: conversation }] : [],
     summaries: { summary: result.summary, wants: result.wants },
     suggestions: [result],
     status: 'ended',

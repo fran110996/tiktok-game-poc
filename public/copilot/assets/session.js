@@ -33,6 +33,7 @@
   // SETUP
   // =============================================================
   async function loadSetup() {
+    setupMode();
     await fillLanguages($('#my-lang'), { selected: pref('myLanguage') || 'en' });
     await fillLanguages($('#their-lang'), { auto: true, selected: pref('theirLanguage') || 'auto' });
 
@@ -61,8 +62,11 @@
     cSel.innerHTML += contacts.map(c => `<option value="${c.id}">${esc(c.name)}${c.company ? ` — ${esc(c.company)}` : ''}</option>`).join('');
     const preset = new URLSearchParams(location.search).get('contact');
     if (preset) cSel.value = preset;
+  }
 
-    // Mode: phones cannot capture other apps' audio → in-person by default
+  // Runs before anything is fetched, so Start always uses the right mode
+  function setupMode() {
+    // Phones cannot capture other apps' audio → in-person by default
     const canShare = Boolean(navigator.mediaDevices?.getDisplayMedia);
     if (!canShare) {
       const meetingRadio = document.querySelector('input[name=mode][value=meeting]');
@@ -657,8 +661,25 @@
         credentials: 'same-origin',
         body: JSON.stringify({ text }),
       });
-      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'TTS failed');
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw Object.assign(new Error(data.error || 'TTS failed'), { demo: Boolean(data.demo) });
+      }
       return URL.createObjectURL(await res.blob());
+    }
+
+    // Demo mode (no OpenAI key): the browser's built-in voice reads instead
+    const synth = window.speechSynthesis;
+    function browserSay(text) {
+      if (!synth) { busy = false; status('No voice available in this browser'); return; }
+      last = { text, url: null };
+      const u = new SpeechSynthesisUtterance(text);
+      if (/[\u0E00-\u0E7F]/.test(text)) u.lang = 'th-TH';
+      u.onend = () => { busy = false; status(queue.length ? '' : 'Idle'); pump(); };
+      u.onerror = u.onend;
+      synth.cancel();
+      synth.speak(u);
+      status('Speaking (browser voice, demo)…');
     }
 
     async function pump() {
@@ -675,6 +696,7 @@
         await audio.play();
         status('Speaking…');
       } catch (err) {
+        if (err.demo) return browserSay(text);
         status(`Playback error: ${err.message}`);
         busy = false;
         pump();
@@ -733,29 +755,32 @@
       play() {
         this.unlock();
         paused = false;
+        if (synth && synth.paused) { synth.resume(); status('Speaking…'); return; }
         if (audio.src && audio.paused && !audio.ended && busy) { audio.play(); status('Speaking…'); } else pump();
       },
       pause() {
         paused = true;
         audio.pause();
+        if (synth && synth.speaking) synth.pause();
         status('Paused');
       },
       replay() {
         if (!last) return status('Nothing to replay yet');
         paused = false;
         queue.length = 0;
+        if (!last.url) { busy = true; browserSay(last.text); return; }
         audio.src = last.url;
         busy = true;
         audio.play().then(() => status('Replaying…')).catch(() => { busy = false; });
       },
       toggleMute() {
         muted = !muted;
-        if (muted) { queue.length = 0; audio.pause(); busy = false; }
+        if (muted) { queue.length = 0; audio.pause(); if (synth) synth.cancel(); busy = false; }
         status(muted ? 'Muted' : 'Unmuted');
         $('#pb-mute').textContent = muted ? '🔈 Unmute' : '🔇 Mute';
         state.targets.forEach(t => t.render());
       },
-      stopAll() { queue.length = 0; audio.pause(); busy = false; },
+      stopAll() { queue.length = 0; audio.pause(); if (synth) synth.cancel(); busy = false; },
       async setSink(id) {
         if (audio.setSinkId) await audio.setSinkId(id).catch(() => toast('Could not switch output device', 'error'));
       },

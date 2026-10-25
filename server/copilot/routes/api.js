@@ -13,6 +13,7 @@ const config = require('../config');
 const auth = require('../services/auth');
 const store = require('../services/store');
 const ai = require('../services/openai');
+const keys = require('../services/keys');
 const live = require('../services/live');
 const { generateReply, readScreen, CHANNELS } = require('../services/reply');
 const { ALLOWED_EXT, extractText } = require('../services/documents');
@@ -54,7 +55,8 @@ router.get('/meta', handle(async () => ({
   tags: PRESET_TAGS,
   event_types: EVENT_TYPES,
   storage: (await store.status()).mode,
-  ai_configured: Boolean(config.openaiKey),
+  ai_configured: Boolean(keys.getKey()),
+  demo: keys.isDemo(),
   models: { llm: config.llmModel, transcribe: config.transcribeModel, tts: config.ttsModel },
   timezone: config.timezone,
 })));
@@ -153,7 +155,6 @@ router.get('/sessions/:id', handle(async (req) => {
 }));
 
 router.post('/sessions', handle(async (req) => {
-  if (!config.openaiKey) throw httpError(503, 'OPENAI_API_KEY is not set on the server');
   return live.start(uid(req), req.body || {});
 }));
 
@@ -236,10 +237,42 @@ router.post('/read-screen', (req, res, next) => {
 router.post('/tts', handle(async (req, res) => {
   const text = String(req.body?.text || '').trim();
   if (!text) throw httpError(400, 'No text');
-  const upstream = await ai.speech(text);
+  let upstream;
+  try {
+    upstream = await ai.speech(text);
+  } catch (err) {
+    if (err.demo) return res.status(503).json({ error: err.message, demo: true });
+    throw err;
+  }
   res.set('Content-Type', 'audio/mpeg');
   res.set('Cache-Control', 'no-store');
   Readable.fromWeb(upstream.body).pipe(res);
 }));
+
+// ---------------------------------------------------------------
+// Settings: OpenAI API key (stored encrypted on the server, only a
+// masked version is ever sent back to the browser)
+// ---------------------------------------------------------------
+router.get('/settings', handle(async () => ({
+  openai: keys.status(),
+  models: { llm: config.llmModel, transcribe: config.transcribeModel, tts: config.ttsModel },
+  storage: (await store.status()).mode,
+})));
+
+router.put('/settings/openai-key', handle(async (req) => {
+  const key = String(req.body?.key || '').trim();
+  if (!/^sk-[A-Za-z0-9_\-]{20,}$/.test(key)) throw httpError(400, 'That does not look like an OpenAI API key (it starts with "sk-").');
+  const check = await keys.test(key);
+  if (!check.ok) throw httpError(400, `OpenAI rejected this key: ${check.error}`);
+  await keys.save(uid(req), key);
+  return { ok: true, openai: keys.status() };
+}));
+
+router.delete('/settings/openai-key', handle(async (req) => {
+  await keys.save(uid(req), null);
+  return { ok: true, openai: keys.status() };
+}));
+
+router.post('/settings/test', handle(async () => keys.test()));
 
 module.exports = router;

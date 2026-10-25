@@ -37,7 +37,15 @@ Every copilot page and API route requires this login.
 
 ---
 
-## 3. Before a session: context & documents
+## 3. OpenAI API key (Settings) and demo mode
+
+- **Settings → OpenAI API key:** paste a key from platform.openai.com. It is checked with OpenAI, stored **encrypted** on the server, and only shown masked (`sk-proj…ab12`). Usage is billed by OpenAI to the owner of the key. Set a monthly budget in OpenAI → Settings → Limits.
+- A key in the `OPENAI_API_KEY` server variable also works. A key saved in Settings takes priority.
+- **Demo mode:** without any key, the copilot runs with **example answers** and shows a blue "Demo mode" banner. Every screen works, but nothing is really transcribed, read or searched, and the read-aloud uses the browser's own voice. `COPILOT_DEMO=true` forces demo mode even when a key exists.
+
+---
+
+## 4. Before a session: context & documents
 
 **Context & documents** (left menu):
 
@@ -47,7 +55,7 @@ Every copilot page and API route requires this login.
 
 ---
 
-## 4. Live meeting assistant
+## 5. Live meeting assistant
 
 **New session:**
 
@@ -115,20 +123,20 @@ During a meeting you can also read the shared meeting screen, for example their 
 
 ---
 
-## 5. Reply assistant (any channel)
+## 6. Reply assistant (any channel)
 
 Personal LINE and LinkedIn accounts have no API: LINE allows it only for Official Accounts, and LinkedIn only for approved partners. So for personal accounts, paste-and-copy (or **Read my screen**) is the only option, and you always send the message yourself.
 
 1. Choose the **channel**: Email, LINE, WhatsApp, LinkedIn, Messenger, SMS or Other.
 2. Optionally choose a **contact** and a **context profile**, and tick **documents**.
 3. Paste the conversation or email. Optionally add a note, such as “decline politely” or “ask for the price list”.
-4. Click **Draft replies**. You get a summary of what they want and 2–3 drafts in the channel's style, each with a **Copy** button.
+4. Click **Draft replies**. To write a **new** one-to-one message, with no conversation to paste, leave the text empty and describe the message in the note, for example "thank Khun Ann for lunch and send the catalogue". You get a summary of what they want and 2–3 drafts in the channel's style, each with a **Copy** button.
 
 When a draft needs a fact the copilot does not have, such as one of your prices, it writes a placeholder like `[confirm price]` and marks the result **Uncertain**. Nothing is ever sent automatically. Drafts are saved in **History** and on the contact's page.
 
 ---
 
-## 6. Contacts
+## 7. Contacts
 
 **Contacts → New contact:**
 
@@ -142,13 +150,13 @@ On a contact's page:
 - **History:** meetings and reply drafts linked to this contact.
 - Shortcuts to **Start session** or **Draft a reply** with the contact preselected.
 
-## 7. Upcoming & greetings
+## 8. Upcoming & greetings
 
 **Upcoming** lists events and follow-ups in the next 14 days (overdue follow-ups too). Each one comes with a suggested personal message and a **Copy** button: congratulations, get-well wishes, or a check-in. **Regenerate messages** writes new ones.
 
 **Group message helper:** pick a tag, untick anyone to skip, and describe the purpose. You get one personalised message per contact to copy and send yourself.
 
-## 8. Morning summary
+## 9. Morning summary
 
 1. **Morning summary → Settings:** add brands, products and keywords, one per line. Write `Brand: product` to group a product or keyword under a brand. Optionally add sites to check first, and pick the languages (the first one ticked is the summary language). Click **Save**.
 2. Click **Run now**, or just open the copilot: the first time it is opened each day, the summary starts automatically in the background. This does not rely on a schedule, because the free server sleeps.
@@ -157,12 +165,12 @@ On a contact's page:
 
 ---
 
-## 9. Server setup (for whoever deploys)
+## 10. Server setup (for whoever deploys)
 
 1. **Supabase:** open the SQL editor and run `copilot_setup.sql` once. It creates the `copilot_*` tables with RLS on and no public policies.
 2. **Environment variables** (Render → Environment). See `.env.example`:
    - `COPILOT_USER_EMAIL`, `COPILOT_USER_PASSWORD`, `COPILOT_SESSION_SECRET` (a long random string)
-   - `OPENAI_API_KEY`
+   - `OPENAI_API_KEY` (optional: the key can also be pasted in **Settings**; without any key the copilot runs in demo mode)
    - `SUPABASE_SERVICE_ROLE_KEY`: required so the server can use the private copilot tables. Keep it secret; it is only used on the server.
    - Optional: `COPILOT_LLM_MODEL` (default `gpt-4.1-mini`), `COPILOT_TRANSCRIBE_MODEL` (default `gpt-4o-mini-transcribe`), `COPILOT_TTS_MODEL` (default `gpt-4o-mini-tts`), `COPILOT_TTS_VOICE`, `COPILOT_TIMEZONE` (default `Asia/Bangkok`), `COPILOT_WEB_SEARCH_TOOL` (default `web_search`).
 3. Run `npm install`. This adds `pdf-parse` and `mammoth` for document text extraction.

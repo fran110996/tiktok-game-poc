@@ -206,7 +206,7 @@ class LiveSessions {
 
     let text;
     try {
-      text = await ai.transcribe(buffer, { mimeType, language: lang, prompt: prevText });
+      text = await ai.transcribe(buffer, { mimeType, language: lang, prompt: prevText, source, sessionKey: s.id });
     } catch (err) {
       this.emit(s, 'copilot:error', { message: `Transcription failed: ${err.message}` });
       throw err;

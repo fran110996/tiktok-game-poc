@@ -20,6 +20,7 @@ const TABLES = [
   'copilot_events',
   'copilot_monitor_keywords',
   'copilot_monitor_reports',
+  'copilot_settings',
 ];
 
 let supabase = null;
@@ -54,18 +55,34 @@ function loadLocal() {
   return local;
 }
 
+function writeLocal() {
+  clearTimeout(saveTimer);
+  saveTimer = null;
+  try {
+    fs.mkdirSync(path.dirname(config.localStorePath), { recursive: true });
+    const tmp = `${config.localStorePath}.tmp`;
+    fs.writeFileSync(tmp, JSON.stringify(local));
+    fs.renameSync(tmp, config.localStorePath);
+  } catch (err) {
+    console.error('[Copilot] Could not write local store:', err.message);
+  }
+}
+
 function saveLocal() {
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => {
-    try {
-      fs.mkdirSync(path.dirname(config.localStorePath), { recursive: true });
-      const tmp = `${config.localStorePath}.tmp`;
-      fs.writeFileSync(tmp, JSON.stringify(local));
-      fs.renameSync(tmp, config.localStorePath);
-    } catch (err) {
-      console.error('[Copilot] Could not write local store:', err.message);
-    }
-  }, 200);
+  saveTimer = setTimeout(writeLocal, 200);
+}
+
+// Don't lose the last change when the server stops (Ctrl+C, redeploy)
+function flushOnExit() {
+  if (saveTimer) writeLocal();
+}
+process.on('exit', flushOnExit);
+for (const sig of ['SIGINT', 'SIGTERM']) {
+  process.once(sig, () => {
+    flushOnExit();
+    process.exit(0);
+  });
 }
 
 // ---------------------------------------------------------------

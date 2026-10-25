@@ -15,6 +15,7 @@ const Copilot = (() => {
     { sep: true },
     { href: '/copilot/library', key: 'library', icon: '❏', label: 'Context & documents' },
     { href: '/copilot/help', key: 'help', icon: '?', label: 'Beginner guide' },
+    { href: '/copilot/settings', key: 'settings', icon: '⚙', label: 'Settings' },
   ];
 
   // ---------------------------------------------------------------
@@ -197,9 +198,9 @@ const Copilot = (() => {
     }
 
     meta().then(m => {
-      if (!m.ai_configured) {
+      if (m.demo) {
         const main = document.querySelector('.main');
-        if (main) main.insertAdjacentHTML('afterbegin', '<div class="notice error">OPENAI_API_KEY is not set on the server — AI features will not work until it is added.</div>');
+        if (main) main.insertAdjacentHTML('afterbegin', `<div class="notice info"><b>Demo mode</b> — AI answers are examples, nothing is really transcribed, read or searched. ${active === 'settings' ? '' : '<a href="/copilot/settings">Add an OpenAI API key in Settings</a> for real results.'}</div>`);
       }
       if (m.storage === 'local') {
         const main = document.querySelector('.main');

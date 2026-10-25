@@ -21,6 +21,7 @@ const PAGES = {
   '/upcoming': 'upcoming.html',
   '/monitor': 'monitor.html',
   '/help': 'help.html',
+  '/settings': 'settings.html',
 };
 
 const router = express.Router({ strict: false });

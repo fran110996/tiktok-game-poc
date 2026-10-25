@@ -7,6 +7,7 @@
 
 const auth = require('./services/auth');
 const store = require('./services/store');
+const keys = require('./services/keys');
 const live = require('./services/live');
 const pagesRouter = require('./routes/pages');
 const apiRouter = require('./routes/api');
@@ -36,6 +37,9 @@ function mount(app, io) {
   live.attach(nsp);
 
   store.status().catch(() => {});
+  keys.load().then(() => {
+    if (keys.isDemo()) console.log('[Copilot] No OpenAI API key → DEMO MODE (example answers). Add a key in /copilot/settings');
+  }).catch(() => {});
   if (!auth.isConfigured()) {
     console.warn('[Copilot] COPILOT_USER_EMAIL / COPILOT_USER_PASSWORD not set — login disabled');
   }

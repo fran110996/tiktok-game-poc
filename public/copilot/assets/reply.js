@@ -29,7 +29,7 @@
   function renderResult(r) {
     $('#result').innerHTML = `
       <div class="row" style="margin-bottom:8px">${uncertainTag(r)}${r.sources?.length ? '<span class="tag accent">Web researched</span>' : ''}</div>
-      <div class="section-label">What they want</div>
+      <div class="section-label">${r.wants?.length ? 'What they want' : 'Goal'}</div>
       <p>${esc(r.summary)}</p>
       ${r.wants?.length ? `<ul class="qlist" style="margin-top:6px">${r.wants.map(w => `<li>${esc(w)}</li>`).join('')}</ul>` : ''}
       ${uncertainNote(r)}
@@ -47,7 +47,7 @@
 
   $('#go').addEventListener('click', async () => {
     const text = $('#text').value.trim();
-    if (!text) return toast('Paste the conversation first', 'error');
+    if (!text && !$('#note').value.trim()) return toast('Paste a conversation, or describe a new message in the note', 'error');
     const btn = $('#go');
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner"></span> Drafting…';

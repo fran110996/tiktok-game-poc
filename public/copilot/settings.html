@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Settings — Sales Copilot</title>
+  <link rel="stylesheet" href="/copilot/assets/copilot.css" />
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="nav"></aside>
+  <main class="main">
+    <div class="page-head">
+      <div>
+        <h1>Settings</h1>
+        <p>Connect your own OpenAI account. Usage is billed by OpenAI to the owner of the key.</p>
+      </div>
+    </div>
+
+    <div class="grid grid-2">
+      <section class="card">
+        <h2>OpenAI API key</h2>
+        <div id="key-status" class="subcard" style="margin-bottom:14px"><span class="spinner"></span></div>
+        <div class="field">
+          <label for="key-input">Paste a new key</label>
+          <input type="password" id="key-input" placeholder="sk-..." autocomplete="off" />
+          <div class="small muted" style="margin-top:4px">It is checked with OpenAI, stored encrypted on the server and never shown again in full.</div>
+        </div>
+        <div class="row">
+          <button class="btn-primary" id="save-key">Save key</button>
+          <button class="btn-ghost" id="test-key">Test connection</button>
+          <button class="btn-ghost" id="remove-key">Remove saved key</button>
+        </div>
+        <div id="key-msg" style="margin-top:12px"></div>
+      </section>
+
+      <section class="card">
+        <h2>How to get a key</h2>
+        <ol class="qlist" style="margin-left:20px">
+          <li>Go to <a href="https://platform.openai.com" target="_blank" rel="noopener">platform.openai.com</a> and sign in.</li>
+          <li><b>Billing</b> → add credit (USD 10–20 is plenty to start).</li>
+          <li><b>Settings → Limits</b> → set a monthly budget so there are no surprises.</li>
+          <li><b>API keys → Create new secret key</b> → name it “Sales Copilot” → copy it.</li>
+          <li>Paste it here and click <b>Save key</b>.</li>
+        </ol>
+        <div class="section-label">Approximate cost</div>
+        <p class="small">About USD 0.50–2 per hour of live session; cents for a reply, a screen read or a morning summary.</p>
+        <div class="section-label">Without a key</div>
+        <p class="small">The copilot runs in <b>demo mode</b>: every screen works with example answers so you can try it, but nothing is really transcribed, read or searched.</p>
+        <div class="section-label">Models</div>
+        <p class="small muted" id="models"></p>
+      </section>
+    </div>
+  </main>
+</div>
+<script src="/copilot/assets/common.js"></script>
+<script>
+(() => {
+  const { api, esc, $, toast } = Copilot;
+  Copilot.init('settings');
+
+  function render(o) {
+    const src = { settings: 'saved here in Settings', server: 'from the server configuration (OPENAI_API_KEY)', none: 'none' }[o.source];
+    $('#key-status').innerHTML = o.configured
+      ? `<div class="row"><span class="tag green">Connected</span><b>${esc(o.masked)}</b></div><div class="small muted" style="margin-top:6px">Key ${esc(src)}.${o.forced_demo ? ' Demo mode is forced by the server (COPILOT_DEMO=true).' : ''}</div>`
+      : '<div class="row"><span class="tag uncertain">Demo mode</span><span>No API key yet</span></div>';
+    if (o.error) $('#key-status').insertAdjacentHTML('beforeend', `<div class="notice error" style="margin-top:8px">${esc(o.error)}</div>`);
+    $('#remove-key').disabled = o.source !== 'settings';
+    $('#test-key').disabled = !o.configured;
+  }
+
+  async function load() {
+    const s = await api('/settings');
+    render(s.openai);
+    $('#models').textContent = `Language: ${s.models.llm} · Transcription: ${s.models.transcribe} · Voice: ${s.models.tts}`;
+  }
+
+  function msg(html, type) {
+    $('#key-msg').innerHTML = `<div class="notice ${type}">${html}</div>`;
+  }
+
+  $('#save-key').addEventListener('click', async () => {
+    const key = $('#key-input').value.trim();
+    if (!key) return toast('Paste the key first', 'error');
+    const b = $('#save-key');
+    b.disabled = true;
+    b.innerHTML = '<span class="spinner"></span> Checking…';
+    try {
+      const r = await api('/settings/openai-key', { method: 'PUT', body: { key } });
+      render(r.openai);
+      $('#key-input').value = '';
+      msg('Key saved and working. The copilot now uses real AI — reload other open copilot tabs.', 'info');
+    } catch (err) {
+      msg(esc(err.message), 'error');
+    } finally {
+      b.disabled = false;
+      b.textContent = 'Save key';
+    }
+  });
+
+  $('#test-key').addEventListener('click', async () => {
+    const r = await api('/settings/test', { method: 'POST' });
+    msg(r.ok ? 'Connection OK — OpenAI accepted the key.' : `Problem: ${esc(r.error)}`, r.ok ? 'info' : 'error');
+  });
+
+  $('#remove-key').addEventListener('click', async () => {
+    if (!confirm('Remove the saved key? The copilot goes back to demo mode (unless the server has its own key).')) return;
+    const r = await api('/settings/openai-key', { method: 'DELETE' });
+    render(r.openai);
+    msg('Key removed.', 'info');
+  });
+
+  load().catch(err => toast(err.message, 'error'));
+})();
+</script>
+</body>
+</html>

@@ -113,7 +113,18 @@ CREATE TABLE IF NOT EXISTS copilot_monitor_reports (
 );
 CREATE INDEX IF NOT EXISTS idx_copilot_monitor_reports_user ON copilot_monitor_reports(user_id, report_date DESC);
 
--- 8. Row Level Security: on, no public policies (server uses the service role key)
+-- 8. SETTINGS (e.g. the OpenAI API key pasted in Settings — stored encrypted)
+CREATE TABLE IF NOT EXISTS copilot_settings (
+  id          UUID PRIMARY KEY,
+  user_id     TEXT NOT NULL,
+  key         TEXT NOT NULL,
+  value       TEXT NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_copilot_settings_user ON copilot_settings(user_id, key);
+
+-- 9. Row Level Security: on, no public policies (server uses the service role key)
 ALTER TABLE copilot_contexts          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE copilot_documents         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE copilot_contacts          ENABLE ROW LEVEL SECURITY;
@@ -121,3 +132,4 @@ ALTER TABLE copilot_sessions          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE copilot_events            ENABLE ROW LEVEL SECURITY;
 ALTER TABLE copilot_monitor_keywords  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE copilot_monitor_reports   ENABLE ROW LEVEL SECURITY;
+ALTER TABLE copilot_settings          ENABLE ROW LEVEL SECURITY;

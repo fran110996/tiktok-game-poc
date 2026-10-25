@@ -366,7 +366,9 @@ table.simple th { color: var(--muted); font-weight: 600; font-size: 0.78rem; tex
 
 .mode-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .mode-pick label { margin: 0; cursor: pointer; }
-.mode-pick input { display: none; }
+.mode-pick label { position: relative; }
+.mode-pick input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.mode-pick input:focus-visible + .mode-card { outline: 2px solid var(--accent); }
 .mode-pick .mode-card { border: 1px solid var(--border-strong); border-radius: 8px; padding: 10px 12px; background: var(--bg); height: 100%; }
 .mode-pick .mode-card b { display: block; color: var(--text); font-size: 0.92rem; margin-bottom: 2px; }
 .mode-pick input:checked + .mode-card { border-color: var(--accent); background: #0f2a33; }

@@ -5,6 +5,8 @@
 // =============================================================
 
 const config = require('../config');
+const keys = require('./keys');
+const demo = require('./demo');
 
 const API = config.openaiBaseUrl;
 
@@ -16,7 +18,7 @@ class OpenAIError extends Error {
 }
 
 function ensureKey() {
-  if (!config.openaiKey) throw new OpenAIError('OPENAI_API_KEY is not set on the server', 500);
+  if (!keys.getKey()) throw new OpenAIError('No OpenAI API key is set (Settings → OpenAI API key)', 503);
 }
 
 async function postJson(pathname, body, { timeoutMs = 90000 } = {}) {
@@ -25,7 +27,7 @@ async function postJson(pathname, body, { timeoutMs = 90000 } = {}) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${config.openaiKey}`,
+      Authorization: `Bearer ${keys.getKey()}`,
     },
     body: JSON.stringify(body),
     signal: AbortSignal.timeout(timeoutMs),
@@ -75,6 +77,7 @@ function parseResponse(data) {
 // Returns { json?, text, sources, searched }
 // ---------------------------------------------------------------
 async function respond({ system, input, schema, schemaName = 'result', webSearch = false, maxOutputTokens = 1500, temperature = 0.4, searchContextSize = 'medium', model }) {
+  if (keys.isDemo()) return demo.respond({ schemaName, input, schema });
   const body = {
     model: model || config.llmModel,
     instructions: system,
@@ -124,7 +127,8 @@ async function respond({ system, input, schema, schemaName = 'result', webSearch
 // ---------------------------------------------------------------
 // transcribe(): audio buffer → text
 // ---------------------------------------------------------------
-async function transcribe(buffer, { mimeType = 'audio/webm', language, prompt } = {}) {
+async function transcribe(buffer, { mimeType = 'audio/webm', language, prompt, source, sessionKey } = {}) {
+  if (keys.isDemo()) return demo.transcribe({ source, sessionKey });
   ensureKey();
   const ext = mimeType.includes('ogg') ? 'ogg' : mimeType.includes('mp4') ? 'mp4' : mimeType.includes('wav') ? 'wav' : 'webm';
   const form = new FormData();
@@ -136,7 +140,7 @@ async function transcribe(buffer, { mimeType = 'audio/webm', language, prompt } 
 
   const res = await fetch(`${API}/audio/transcriptions`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${config.openaiKey}` },
+    headers: { Authorization: `Bearer ${keys.getKey()}` },
     body: form,
     signal: AbortSignal.timeout(60000),
   });
@@ -149,12 +153,14 @@ async function transcribe(buffer, { mimeType = 'audio/webm', language, prompt } 
 // speech(): text → mp3 (returns a fetch Response to stream)
 // ---------------------------------------------------------------
 async function speech(text, { voice, instructions } = {}) {
+  // Demo mode: the browser speaks with its own built-in voice instead
+  if (keys.isDemo()) throw Object.assign(new OpenAIError('Demo mode: using the browser voice', 503), { demo: true });
   ensureKey();
   const res = await fetch(`${API}/audio/speech`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${config.openaiKey}`,
+      Authorization: `Bearer ${keys.getKey()}`,
     },
     body: JSON.stringify({
       model: config.ttsModel,
