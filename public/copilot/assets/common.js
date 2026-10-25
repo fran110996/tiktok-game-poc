@@ -186,16 +186,11 @@ const Copilot = (() => {
       api('/auth/me').then(me => { document.getElementById('nav-user').textContent = me.email; }).catch(() => {});
     }
 
-    // Morning summary: first open of the day starts a run (server decides).
-    const today = new Date().toISOString().slice(0, 10);
-    if (pref('autoMonitorChecked') !== today) {
-      api('/monitor/auto', { method: 'POST' })
-        .then(r => {
-          pref('autoMonitorChecked', today);
-          if (r.started) toast('Preparing today\'s morning summary in the background…');
-        })
-        .catch(() => {});
-    }
+    // Morning summary: first open of the day starts a run. The server decides
+    // (its day is in COPILOT_TIMEZONE), so every page asks; it is a cheap check.
+    api('/monitor/auto', { method: 'POST' })
+      .then(r => { if (r.started) toast('Preparing today\'s morning summary in the background…'); })
+      .catch(() => {});
 
     meta().then(m => {
       if (m.demo) {

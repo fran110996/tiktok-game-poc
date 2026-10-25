@@ -658,6 +658,7 @@
     let last = null; // { text, url }
     const spoken2 = new Set();
     const spoken3 = new Set();
+    const spoken1 = new Set();
 
     function status(msg) {
       $('#pb-status').textContent = msg;
@@ -742,6 +743,9 @@
         state.targets.forEach(t => t.render());
       },
       onLine(line) {
+        // Each line is read once (label corrections re-send the line)
+        if (spoken1.has(line.id)) return;
+        spoken1.add(line.id);
         if (panel !== 1 || line.source === 'me' || line.speaker === 'me') return;
         enqueue(line.translation || line.text);
       },
