@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0d0d1a" />
   <title>Live session — Sales Copilot</title>
   <link rel="stylesheet" href="/copilot/assets/copilot.css" />
 </head>
@@ -22,32 +23,31 @@
 
       <div class="grid grid-2">
         <div class="card">
-          <h2>1 · Context</h2>
-          <div class="field">
-            <label for="context-select">Context profile</label>
-            <select id="context-select"><option value="">— None —</option></select>
-            <div class="small muted" style="margin-top:4px">Manage profiles in <a href="/copilot/library">Context & documents</a>.</div>
+          <h2>1 · Where is the conversation?</h2>
+          <div class="mode-pick field">
+            <label><input type="radio" name="mode" value="meeting" checked />
+              <div class="mode-card"><b>🖥 Online meeting</b><span class="small muted">Zoom, Google Meet, Teams… Microphone = Me, meeting audio = Them.</span></div></label>
+            <label><input type="radio" name="mode" value="room" />
+              <div class="mode-card"><b>☕ In person</b><span class="small muted">Lunch, office, event. Microphone only (phone or computer) — hears both of you.</span></div></label>
           </div>
-          <div class="field">
-            <label for="context-text">Context for this session (edit freely — saved with the session)</label>
-            <textarea id="context-text" rows="7" placeholder="Who I am, my company, products, goals, tone…"></textarea>
-          </div>
-          <div class="field">
-            <label>Documents to include</label>
-            <div id="doc-checks" class="stack small"><span class="muted">Loading…</span></div>
-          </div>
-        </div>
 
-        <div class="card">
-          <h2>2 · Meeting</h2>
           <div class="field">
-            <label for="title">Title (optional)</label>
-            <input type="text" id="title" placeholder="e.g. Intro call with ACME" />
+            <label for="mic-select">Microphone</label>
+            <select id="mic-select"><option value="">Default microphone</option></select>
+            <div class="small muted" style="margin-top:4px">Bluetooth earphones or glasses (e.g. Ray-Ban Meta) appear here when connected.</div>
           </div>
-          <div class="field">
-            <label for="contact-select">Contact (optional)</label>
-            <select id="contact-select"><option value="">— None —</option></select>
+
+          <div class="field" id="meeting-sources">
+            <label>Audio sources</label>
+            <div class="stack">
+              <label class="check"><input type="checkbox" id="use-mic" checked /> Microphone = <b>Me</b></label>
+              <label class="check"><input type="checkbox" id="use-screen" checked /> Meeting window / tab with audio = <b>Them</b></label>
+            </div>
+            <div class="small muted" style="margin-top:6px">In Chrome's dialog choose the meeting <b>tab</b> and tick <b>“Share tab audio”</b> (or the entire screen with <b>“Share system audio”</b> on Windows).
+              Tip: share only the meeting tab/window — then this copilot window is never visible to others.</div>
           </div>
+          <div class="notice info hidden" id="room-tip">Put the phone on the table between you, screen up, and keep this page open. Earphones let you hear suggestions privately.</div>
+
           <div class="grid grid-2" style="gap:10px">
             <div class="field">
               <label for="my-lang">My language</label>
@@ -58,16 +58,31 @@
               <select id="their-lang"></select>
             </div>
           </div>
+        </div>
+
+        <div class="card">
+          <h2>2 · Context</h2>
           <div class="field">
-            <label>Audio sources</label>
-            <div class="stack">
-              <label class="check"><input type="checkbox" id="use-mic" checked /> Microphone = <b>Me</b></label>
-              <label class="check"><input type="checkbox" id="use-screen" checked /> Screen / tab with audio = <b>Them</b> (Zoom / Meet / Teams web tab, or whole screen with system audio on Windows)</label>
-            </div>
-            <div class="small muted" style="margin-top:6px">In-person meeting? Untick the screen share and use the microphone only.
-              When sharing, tick <b>“Share tab audio”</b> / <b>“Share system audio”</b> in Chrome's dialog.</div>
+            <label for="title">Title (optional)</label>
+            <input type="text" id="title" placeholder="e.g. Lunch with ACME" />
           </div>
-          <button class="btn-go btn-lg" id="start-btn">● Start session</button>
+          <div class="field">
+            <label for="contact-select">Contact (optional)</label>
+            <select id="contact-select"><option value="">— None —</option></select>
+          </div>
+          <div class="field">
+            <label for="context-select">Context profile / playbook</label>
+            <select id="context-select"><option value="">— None —</option></select>
+          </div>
+          <div class="field">
+            <label for="context-text">Context for this session (edit freely)</label>
+            <textarea id="context-text" rows="5" placeholder="Who I am, my company, products, goals, tone…"></textarea>
+          </div>
+          <div class="field">
+            <label>Documents to include</label>
+            <div id="doc-checks" class="stack small"><span class="muted">Loading…</span></div>
+          </div>
+          <button class="btn-go btn-lg" id="start-btn" style="width:100%;justify-content:center">● Start</button>
         </div>
       </div>
     </section>
@@ -78,29 +93,37 @@
         <span class="dot" id="live-dot"></span>
         <b id="live-title">Session</b>
         <span class="muted small" id="live-timer">00:00</span>
-        <span class="src-chip" id="chip-me">🎙 Me <span class="meter"><i></i></span></span>
+        <span class="src-chip" id="chip-me">🎙 <span id="chip-me-label">Me</span> <span class="meter"><i></i></span></span>
         <span class="src-chip" id="chip-them">🖥 Them <span class="meter"><i></i></span></span>
         <span class="small muted" id="analyzing" style="display:none"><span class="spinner"></span> updating…</span>
         <span class="spacer"></span>
         <button class="btn-ghost btn-sm" id="resume-btn" style="display:none">Resume audio capture</button>
-        <button class="btn-ghost btn-sm" id="refresh-btn" title="Update panels 2 & 3 now">↻ Update now</button>
+        <button class="btn-ghost btn-sm" id="refresh-btn" title="Update panels 2 & 3 now">↻ Update</button>
+        <button class="btn-ghost btn-sm" id="screen-btn" title="Read the email, document, slide or chart on your screen">📷 Read screen</button>
+        <button class="btn-ghost btn-sm" id="device-btn" title="Follow this session on your phone or tablet">📱 Other device</button>
         <button class="btn-primary btn-sm" id="popout-btn" title="Small always-on-top window">⧉ Pop out</button>
         <button class="btn-danger btn-sm" id="stop-btn">■ Stop</button>
       </div>
       <div id="live-notice"></div>
 
+      <div class="mobile-tabs" id="mobile-tabs">
+        <button data-mtab="1">1 · Transcript</button>
+        <button data-mtab="2">2 · They ask</button>
+        <button data-mtab="3" class="active">3 · Replies</button>
+      </div>
+
       <div class="panels">
         <div class="panel panel-transcript" data-panel="1">
           <div class="panel-head"><span class="num">1</span><h2>TRANSCRIPT & TRANSLATION</h2></div>
           <div class="panel-body" id="p1-body"><div class="empty">Waiting for speech… lines appear ~5–10 s after someone speaks.</div></div>
-          <div class="panel-foot"><span id="p1-count">0 lines</span><span>Me = microphone · Them = shared audio</span></div>
+          <div class="panel-foot"><span id="p1-count">0 lines</span><span id="p1-legend">Me = microphone · Them = shared audio</span></div>
         </div>
         <div class="panel" data-panel="2">
           <div class="panel-head"><span class="num">2</span><h2>WHAT THEY ARE ASKING FOR</h2></div>
           <div class="panel-body" id="p2-body"><div class="empty">Updates every ~20 s or when a question is detected.</div></div>
           <div class="panel-foot"><span id="p2-at"></span></div>
         </div>
-        <div class="panel" data-panel="3">
+        <div class="panel mobile-active" data-panel="3">
           <div class="panel-head"><span class="num">3</span><h2>SUGGESTED REPLIES & SOLUTIONS</h2></div>
           <div class="panel-body" id="p3-body"><div class="empty">Suggestions appear once the conversation starts.</div></div>
           <div class="panel-foot"><span id="p3-at"></span></div>
@@ -108,21 +131,21 @@
       </div>
 
       <div class="playback" id="playback">
-        <b class="small">🎧 Earphone playback</b>
+        <b class="small">🎧</b>
         <select id="speak-panel">
-          <option value="0">Off</option>
+          <option value="0">Read aloud: off</option>
           <option value="1">Read panel 1 (their words, translated)</option>
           <option value="2">Read panel 2 (what they ask)</option>
           <option value="3">Read panel 3 (suggested replies)</option>
         </select>
-        <button class="btn-sm" id="pb-play">▶ Play</button>
-        <button class="btn-sm" id="pb-pause">❚❚ Pause</button>
-        <button class="btn-sm" id="pb-replay">↺ Replay last</button>
-        <button class="btn-sm" id="pb-mute">🔇 Mute</button>
+        <button class="btn-sm" id="pb-play" title="Play">▶</button>
+        <button class="btn-sm" id="pb-pause" title="Pause">❚❚</button>
+        <button class="btn-sm" id="pb-replay" title="Replay last">↺</button>
+        <button class="btn-sm" id="pb-mute" title="Mute">🔇</button>
         <select id="sink-select" title="Output device" class="hidden"></select>
         <span class="small muted" id="pb-status"></span>
       </div>
-      <p class="small muted" style="margin-top:8px">Wear earphones. Playback plays only in this page; it is not sent into the meeting.</p>
+      <p class="small muted" style="margin-top:8px" id="pb-note">Wear earphones. Playback plays only on this device; it is not sent into the meeting.</p>
     </section>
 
     <!-- ============ ENDED ============ -->
@@ -141,6 +164,7 @@
 <script src="/socket.io/socket.io.js"></script>
 <script src="/copilot/assets/common.js"></script>
 <script src="/copilot/assets/render.js"></script>
+<script src="/copilot/assets/screenread.js"></script>
 <script src="/copilot/assets/session.js"></script>
 </body>
 </html>

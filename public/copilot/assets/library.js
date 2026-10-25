@@ -9,7 +9,9 @@ Products / services:
 Key prices or terms I can share:
 My goals for these meetings:
 Tone (e.g. warm, polite, concise):
-Things I must not promise: `;
+Things I must not promise:
+Playbook — common questions/objections and how I answer:
+Playbook — next steps I want after a meeting (e.g. send catalogue, book a demo): `;
 
   async function loadContexts() {
     const list = $('#context-list');

@@ -14,7 +14,7 @@ const auth = require('../services/auth');
 const store = require('../services/store');
 const ai = require('../services/openai');
 const live = require('../services/live');
-const { generateReply, CHANNELS } = require('../services/reply');
+const { generateReply, readScreen, CHANNELS } = require('../services/reply');
 const { ALLOWED_EXT, extractText } = require('../services/documents');
 const { LANGUAGES } = require('../services/languages');
 const { PRESET_TAGS, EVENT_TYPES } = require('../services/contacts');
@@ -23,6 +23,7 @@ const { handle, httpError } = require('./util');
 const router = express.Router();
 const docUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 const audioUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
+const imageUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 // ---------------------------------------------------------------
 // Auth (login/status are the only public endpoints)
@@ -166,7 +167,7 @@ router.post('/sessions/:id/audio', (req, res, next) => {
   if (!s) throw httpError(404, 'Session is not live');
   if (!req.file || req.file.size < 1000) return { ok: true, skipped: true };
   const line = await live.addAudio(s, {
-    source: req.body.source === 'me' ? 'me' : 'them',
+    source: ['me', 'them', 'room'].includes(req.body.source) ? req.body.source : 'them',
     buffer: req.file.buffer,
     mimeType: req.file.mimetype || 'audio/webm',
     t: req.body.t,
@@ -205,6 +206,29 @@ router.delete('/sessions/:id', handle(async (req) => {
 // Reply assistant
 // ---------------------------------------------------------------
 router.post('/reply', handle(async (req) => generateReply(uid(req), req.body || {})));
+
+// Read my screen (image upload: screen frame, screenshot or phone photo)
+router.post('/read-screen', (req, res, next) => {
+  imageUpload.single('image')(req, res, (err) => {
+    if (err) return res.status(400).json({ error: err.code === 'LIMIT_FILE_SIZE' ? 'Image is larger than 10 MB' : err.message });
+    next();
+  });
+}, handle(async (req) => {
+  if (!req.file) throw httpError(400, 'No image uploaded');
+  if (!/^image\/(png|jpe?g|webp|gif)$/i.test(req.file.mimetype)) throw httpError(400, 'Use a PNG, JPG, WEBP or GIF image');
+  let docIds = [];
+  try { docIds = JSON.parse(req.body.document_ids || '[]'); } catch (err) { docIds = []; }
+  return readScreen(uid(req), {
+    image: req.file.buffer,
+    mimeType: req.file.mimetype,
+    context_id: req.body.context_id || null,
+    contact_id: req.body.contact_id || null,
+    note: req.body.note || '',
+    my_language: req.body.my_language || 'en',
+    reply_language: req.body.reply_language || 'auto',
+    document_ids: Array.isArray(docIds) ? docIds : [],
+  });
+}));
 
 // ---------------------------------------------------------------
 // Text to speech (earphone playback)

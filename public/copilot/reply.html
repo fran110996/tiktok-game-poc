@@ -46,8 +46,17 @@
             <select id="reply-lang"></select>
           </div>
         </div>
+        <div class="subcard" style="margin-bottom:14px">
+          <div class="row between">
+            <div><b>Read my screen</b><div class="small muted" id="screen-hint">Read the email, document, slide, image or chart you are looking at — no copying needed.</div></div>
+            <div class="row">
+              <button class="btn-go" id="read-screen">📷 Read my screen</button>
+              <button class="btn-ghost btn-sm" id="read-image">Upload screenshot / photo</button>
+            </div>
+          </div>
+        </div>
         <div class="field">
-          <label for="text">Paste the conversation or email</label>
+          <label for="text">…or paste the conversation or email</label>
           <textarea id="text" rows="12" placeholder="Paste here…"></textarea>
         </div>
         <div class="field">
@@ -69,6 +78,7 @@
   </main>
 </div>
 <script src="/copilot/assets/common.js"></script>
+<script src="/copilot/assets/screenread.js"></script>
 <script src="/copilot/assets/reply.js"></script>
 </body>
 </html>

@@ -75,6 +75,17 @@ const SUMMARY_SCHEMA = {
   required: ['summary', 'key_points', 'next_steps'],
 };
 
+const TRANSLATE_ROOM_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    language: { type: 'string', description: 'ISO-639-1 code of the original text' },
+    translation: { type: 'string', description: 'Translation into the target language, or empty string if the text is already in it' },
+    speaker: { type: 'string', enum: ['me', 'them', 'unknown'] },
+  },
+  required: ['language', 'translation', 'speaker'],
+};
+
 const TRANSLATE_SCHEMA = {
   type: 'object',
   additionalProperties: false,
@@ -130,11 +141,14 @@ class LiveSessions {
       document_ids: Array.isArray(input.document_ids) ? input.document_ids.slice(0, 20) : [],
       contact_id: input.contact_id || null,
       sources: input.sources || {},
+      // 'meeting': mic = Me + shared audio = Them. 'room': one microphone hears
+      // both people (in-person conversation, phone); speakers are guessed.
+      mode: input.mode === 'room' ? 'room' : 'meeting',
     };
     const bg = await loadBackground(userId, settings);
     const startedAt = new Date().toISOString();
     const title = (input.title || '').trim()
-      || `Meeting${bg.contact ? ` with ${bg.contact.name}` : ''} — ${new Date().toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}`;
+      || `${settings.mode === 'room' ? 'Conversation' : 'Meeting'}${bg.contact ? ` with ${bg.contact.name}` : ''} — ${new Date().toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}`;
 
     const row = await store.insert('copilot_sessions', userId, {
       kind: 'meeting',
@@ -182,8 +196,12 @@ class LiveSessions {
   async addAudio(s, { source, buffer, mimeType, t }) {
     if (s.status !== 'live') return null;
     s.lastActivity = Date.now();
+    const isRoom = source === 'room';
     const isMe = source === 'me';
-    const lang = isMe ? s.settings.my_language : (s.settings.their_language !== 'auto' ? s.settings.their_language : undefined);
+    // Room audio mixes both languages, so let the model detect it.
+    const lang = isRoom ? undefined
+      : isMe ? s.settings.my_language
+        : (s.settings.their_language !== 'auto' ? s.settings.their_language : undefined);
     const prevText = s.transcript.filter(l => l.source === source).slice(-3).map(l => l.text).join(' ');
 
     let text;
@@ -198,35 +216,41 @@ class LiveSessions {
     const line = {
       id: crypto.randomUUID(),
       t: Number(t) || Date.now(),
-      source: isMe ? 'me' : 'them',
+      source: isRoom ? 'room' : isMe ? 'me' : 'them',
       text,
       translation: '',
       language: lang || null,
     };
+    if (isRoom) line.speaker = 'unknown';
     this.insertLine(s, line);
     this.emit(s, 'copilot:line', line);
 
-    // Translate to my language (skip if already in it)
+    // Translate to my language (skip if already in it); in room mode also
+    // guess who is speaking from my context and the recent conversation.
     try {
       const target = languageName(s.settings.my_language);
+      const roomHint = isRoom
+        ? `\nThe text comes from ONE microphone that hears both ME (the user) and THEM (the other person). Guess "speaker": "me" or "them" from the content, the conversation so far and what you know about me; use "unknown" if unclear.\nAbout me: ${(s.bg.contextText || '(no context)').slice(0, 600)}\nRecent conversation:\n${this.transcriptText(s, 1200)}`
+        : '';
       const out = await ai.respond({
-        system: `You are a professional interpreter. Detect the language of the text and translate it into ${target}. Keep the meaning, names and numbers exactly. If the text is already in ${target}, return an empty translation. Output only JSON.`,
+        system: `You are a professional interpreter. Detect the language of the text and translate it into ${target}. Keep the meaning, names and numbers exactly. If the text is already in ${target}, return an empty translation.${roomHint} Output only JSON.`,
         input: text,
-        schema: TRANSLATE_SCHEMA,
+        schema: isRoom ? TRANSLATE_ROOM_SCHEMA : TRANSLATE_SCHEMA,
         schemaName: 'translation',
         maxOutputTokens: 600,
         temperature: 0,
       });
       line.language = (out.json.language || line.language || '').slice(0, 5).toLowerCase() || null;
       line.translation = (out.json.translation || '').trim();
-      if (!isMe && line.language) s.detectedTheirLanguage = line.language;
+      if (isRoom) line.speaker = ['me', 'them'].includes(out.json.speaker) ? out.json.speaker : 'unknown';
+      if (!isMe && line.speaker !== 'me' && line.language) s.detectedTheirLanguage = line.language;
     } catch (err) {
       // Transcript line stays without translation
     }
     line.translated = true;
     this.emit(s, 'copilot:line', line);
 
-    if (!isMe && (QUESTION_HINT.test(text) || QUESTION_HINT.test(line.translation)) && Date.now() - s.lastAnalysisAt > 5000) {
+    if (!isMe && line.speaker !== 'me' && (QUESTION_HINT.test(text) || QUESTION_HINT.test(line.translation)) && Date.now() - s.lastAnalysisAt > 5000) {
       this.analyze(s).catch(() => {});
     }
     return line;
@@ -241,7 +265,9 @@ class LiveSessions {
   transcriptText(s, maxChars = 8000) {
     const lines = s.transcript.map(l => {
       const ts = new Date(l.t).toISOString().slice(11, 19);
-      const who = l.source === 'me' ? 'ME' : 'THEM';
+      const who = l.source === 'room'
+        ? `VOICE (${l.speaker === 'me' ? 'probably ME' : l.speaker === 'them' ? 'probably THEM' : 'speaker unknown'})`
+        : l.source === 'me' ? 'ME' : 'THEM';
       return `[${ts}] ${who}: ${l.text}${l.translation ? `  (translation: ${l.translation})` : ''}`;
     });
     let out = '';
@@ -274,9 +300,12 @@ class LiveSessions {
     const convo = this.transcriptText(s);
     const recent = this.transcriptText(s, 1500);
     const background = backgroundBlock(s.bg, recent);
+    const roomNote = s.settings.mode === 'room'
+      ? '\nThis is an in-person conversation recorded by one microphone: lines are labelled VOICE with a guessed speaker, and the guess can be wrong. Use the content to tell who is asking.'
+      : '';
 
     const panel2 = ai.respond({
-      system: `You assist ME (the user) live during a sales/business meeting. "THEM" is the other side.
+      system: `You assist ME (the user) live during a sales/business meeting. "THEM" is the other side.${roomNote}
 Identify what THEM is asking for or wants. Write in ${mine}.
 - "request": one line summarising their main request right now.
 - "actions": concrete actions they are asking ME to do (checklist items, short).
@@ -291,7 +320,7 @@ ${HONESTY_RULES}`,
     });
 
     const panel3 = ai.respond({
-      system: `You assist ME (the user) live during a sales/business meeting. "THEM" is the other side.
+      system: `You assist ME (the user) live during a sales/business meeting. "THEM" is the other side.${roomNote}
 Suggest what I can say right now and the best answer/solution.
 - "replies": 1–3 short replies I can say now (1–2 sentences each). "say" is written in ${theirs} (the language THEM speaks). "meaning" is the ${mine} translation, or "" if ${theirs} is ${mine}.
 - "solution": a concise answer or solution in ${mine} using my context, my documents and the conversation (max ~120 words).

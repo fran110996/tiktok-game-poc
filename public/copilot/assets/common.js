@@ -14,6 +14,7 @@ const Copilot = (() => {
     { href: '/copilot/monitor', key: 'monitor', icon: '☀', label: 'Morning summary' },
     { sep: true },
     { href: '/copilot/library', key: 'library', icon: '❏', label: 'Context & documents' },
+    { href: '/copilot/help', key: 'help', icon: '?', label: 'Beginner guide' },
   ];
 
   // ---------------------------------------------------------------
@@ -170,9 +171,13 @@ const Copilot = (() => {
     const nav = document.getElementById('nav');
     if (nav) {
       nav.innerHTML = `
-        <div class="brand"><div class="brand-mark">SC</div><div>SALES COPILOT<small>Your meeting & reply assistant</small></div></div>
+        <div class="brand"><div class="brand-mark">SC</div><div>SALES COPILOT<small>Your meeting & reply assistant</small></div>
+          <button class="btn-ghost btn-sm menu-toggle" id="menu-toggle" aria-label="Menu">☰</button></div>
+        <div class="nav-links">
         ${NAV.map(n => n.sep ? '<div class="nav-sep"></div>' : `<a class="nav-link ${n.key === active ? 'active' : ''}" href="${n.href}"><span class="nav-icon">${n.icon}</span>${n.label}</a>`).join('')}
+        </div>
         <div class="sidebar-footer"><div id="nav-user"></div><button class="btn-ghost btn-sm" id="logout-btn">Log out</button></div>`;
+      document.getElementById('menu-toggle').addEventListener('click', () => nav.classList.toggle('open'));
       document.getElementById('logout-btn').addEventListener('click', async () => {
         await api('/auth/logout', { method: 'POST' }).catch(() => {});
         location.href = '/copilot/login';

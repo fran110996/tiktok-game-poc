@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Beginner guide — Sales Copilot</title>
+  <link rel="stylesheet" href="/copilot/assets/copilot.css" />
+  <style>
+    .guide h2 { margin-bottom: 10px; }
+    .guide ol, .guide ul { margin: 6px 0 6px 20px; }
+    .guide li { margin: 5px 0; }
+    .guide p { margin: 6px 0; }
+    .guide .example { background: var(--bg); border-left: 3px solid var(--accent); padding: 10px 12px; border-radius: 6px; margin: 10px 0; font-size: 0.9rem; }
+    .guide .checklist li { align-items: center; }
+    .toc { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="nav"></aside>
+  <main class="main guide">
+    <div class="page-head">
+      <div>
+        <h1>Beginner guide</h1>
+        <p>Ten minutes to get set up, then one feature at a time. Tick the boxes as you go (saved on this device).</p>
+      </div>
+    </div>
+
+    <div class="toc">
+      <a class="tag accent" href="#setup">1 · Set up</a>
+      <a class="tag accent" href="#meeting">2 · Online meeting</a>
+      <a class="tag accent" href="#inperson">3 · In person (phone)</a>
+      <a class="tag accent" href="#output">4 · Listen & pop-out</a>
+      <a class="tag accent" href="#screen">5 · Read my screen</a>
+      <a class="tag accent" href="#reply">6 · Replies</a>
+      <a class="tag accent" href="#contacts">7 · Contacts & greetings</a>
+      <a class="tag accent" href="#morning">8 · Morning summary</a>
+      <a class="tag accent" href="#devices">Supported devices</a>
+    </div>
+
+    <section class="card" id="setup">
+      <h2>1 · Set up (once)</h2>
+      <ul class="checklist">
+        <li><input type="checkbox" data-step="ctx" /><span>Open <a href="/copilot/library">Context & documents</a> → <b>New profile</b>. Fill in who you are, your company, products, prices you may share, tone and your playbook.</span></li>
+        <li><input type="checkbox" data-step="docs" /><span>Upload 1–3 documents you use with customers (price list, catalogue, company deck). PDF, DOCX, TXT or MD.</span></li>
+        <li><input type="checkbox" data-step="contact" /><span>Add one real contact in <a href="/copilot/contacts">Contacts</a> with tags and a birthday or follow-up date.</span></li>
+        <li><input type="checkbox" data-step="perm" /><span>On first use, allow the <b>microphone</b> (and <b>screen sharing</b> on a computer) when the browser asks.</span></li>
+      </ul>
+      <div class="example"><b>Example context:</b> “I'm Tammy, sales director at ACME Beauty (Bangkok). We sell vitamin C serum (wholesale 990 THB, MOQ 50) and sunscreen. Goal: get distributors to order a trial. Tone: warm, polite, concise; use ค่ะ in Thai. Never promise exclusivity or delivery under 7 days. Objection ‘too expensive’ → explain the 30-day sell-through guarantee.”</div>
+    </section>
+
+    <section class="card" id="meeting">
+      <h2>2 · Online meeting (Zoom, Google Meet, Teams)</h2>
+      <ol>
+        <li>Join your meeting as usual. On a computer, the meeting can be in the Zoom app or in a browser tab.</li>
+        <li>Open <a href="/copilot/session">New session</a> → choose <b>Online meeting</b>, your context, documents and the contact.</li>
+        <li>Click <b>Start</b>. Allow the microphone, then pick what to share:
+          <ul>
+            <li><b>Meeting in a browser tab</b> → choose that tab and tick <b>Share tab audio</b>.</li>
+            <li><b>Zoom/Teams app on Windows</b> → choose <b>Entire screen</b> and tick <b>Share system audio</b>.</li>
+            <li><b>Zoom app on Mac</b> → use Zoom in the browser instead (macOS cannot share app audio).</li>
+          </ul></li>
+        <li>Watch the three panels: <b>1</b> what is said (translated), <b>2</b> what they want, <b>3</b> what you can say.</li>
+        <li>Click <b>■ Stop</b> at the end. The summary and next steps are saved in <a href="/copilot/history">History</a>.</li>
+      </ol>
+      <div class="notice">Privacy tip: this copilot is a website, so it cannot hide itself from screen sharing. In the meeting app, share only the window or tab you want people to see — never your entire screen with the copilot open.</div>
+    </section>
+
+    <section class="card" id="inperson">
+      <h2>3 · In person — lunch, office, events (phone or computer)</h2>
+      <ol>
+        <li>On your phone, open the copilot and log in (add it to your home screen for one-tap access).</li>
+        <li><b>New session</b> → <b>In person</b>. Pick your language and theirs (or Auto-detect).</li>
+        <li>Press <b>Start</b> and allow the microphone. Put the phone on the table, screen up, and keep the page open.</li>
+        <li>Swipe between the tabs <b>1 · Transcript</b>, <b>2 · They ask</b>, <b>3 · Replies</b>.</li>
+      </ol>
+      <p class="small muted">One microphone hears both of you, so the copilot <i>guesses</i> who is speaking: lines show <b>ME?</b>, <b>THEM?</b> or <b>VOICE</b>. If the phone locks or you switch apps, listening pauses — come back and tap <b>Resume audio capture</b>.</p>
+      <div class="example"><b>Example:</b> at lunch the customer asks in Thai “ส่งราคาส่งให้ได้ไหมคะ”. Panel 1 shows the English translation, panel 2 adds “Send wholesale price list” to the checklist, panel 3 suggests “ได้ค่ะ เดี๋ยวส่งให้ทาง LINE วันนี้เลยค่ะ” with its English meaning.</div>
+    </section>
+
+    <section class="card" id="output">
+      <h2>4 · Listen in your earphones, pop-out window, second device</h2>
+      <ul>
+        <li><b>Earphones:</b> under the panels choose <b>Read panel 1, 2 or 3</b>. Only new content is read. Use ▶ play, ❚❚ pause, ↺ replay, 🔇 mute.</li>
+        <li><b>Pop out</b> (computer, Chrome/Edge): a small window that stays on top of Zoom or your email. Drag it anywhere; ✕ hides it, <b>Pop out</b> brings it back.</li>
+        <li><b>📱 Other device:</b> shows a link and QR code. Open it on your phone or tablet to follow the panels and hear them there while the computer listens.</li>
+        <li><b>Bluetooth glasses / earphones</b> (e.g. Ray-Ban Meta): connect them to the phone first; then they work as microphone and speaker like any headset. Pick them under <b>Microphone</b> if listed.</li>
+      </ul>
+    </section>
+
+    <section class="card" id="screen">
+      <h2>5 · Read my screen</h2>
+      <ol>
+        <li>Open the email, document, slide, image or chart you want help with.</li>
+        <li>In <a href="/copilot/reply">Reply assistant</a> click <b>📷 Read my screen</b> and choose that window. During a session use <b>📷 Read screen</b> in the top bar or the 📷 tab of the pop-out.</li>
+        <li>You get the text, a translation, a summary and draft replies with <b>Copy</b> buttons. Nothing is sent.</li>
+      </ol>
+      <p class="small muted">On a phone, the button takes a photo or lets you pick a screenshot instead (phones don't allow websites to capture the screen).</p>
+    </section>
+
+    <section class="card" id="reply">
+      <h2>6 · Replies for LINE, WhatsApp, LinkedIn, email…</h2>
+      <ol>
+        <li>Copy the conversation from the app (or use Read my screen).</li>
+        <li>Paste it in <a href="/copilot/reply">Reply assistant</a>, pick the channel and the contact, add a note like <i>“decline politely”</i>.</li>
+        <li>Choose one of the 2–3 drafts → <b>Copy</b> → paste in the app and send it yourself.</li>
+      </ol>
+      <p class="small muted">Personal LINE and LinkedIn accounts have no API, so the copilot never reads or sends messages there by itself.</p>
+    </section>
+
+    <section class="card" id="contacts">
+      <h2>7 · Contacts, reminders and greetings</h2>
+      <ul>
+        <li>Add tags (journalist, KOL, new/existing customer…), channels, preferred language and tone, notes and a follow-up date.</li>
+        <li>Add events: birthday, wedding, illness, promotion or your own.</li>
+        <li><a href="/copilot/upcoming">Upcoming</a> lists the next 14 days with a ready message for each; the group helper writes one personal message per contact for a tag.</li>
+      </ul>
+    </section>
+
+    <section class="card" id="morning">
+      <h2>8 · Morning summary</h2>
+      <ol>
+        <li>In <a href="/copilot/monitor">Morning summary</a> add your brands, products and keywords, then <b>Save</b>.</li>
+        <li>It runs automatically the first time you open the copilot each day (or click <b>Run now</b>).</li>
+        <li>Each item has a source link and date; “nothing found” is said clearly. Social networks are best-effort.</li>
+      </ol>
+    </section>
+
+    <section class="card" id="devices">
+      <h2>Supported devices</h2>
+      <table class="simple">
+        <tr><th>Device</th><th>Works</th><th>Notes</th></tr>
+        <tr><td>Windows / Mac — Chrome or Edge</td><td>Everything</td><td>Pop-out window needs version 116 or newer.</td></tr>
+        <tr><td>Android — Chrome</td><td>In-person mode, follow on another device, photo “Read my screen”, replies, contacts, morning summary</td><td>No meeting-audio capture or pop-out (phones don't allow it). Keep the screen on.</td></tr>
+        <tr><td>iPhone / iPad — Safari (iOS 16.4+)</td><td>Same as Android</td><td>Keep the page open and the screen on. Chrome on iPhone uses Safari's engine and behaves the same.</td></tr>
+        <tr><td>Firefox, Safari on Mac</td><td>Not supported</td><td>Use Chrome or Edge.</td></tr>
+      </table>
+      <p class="small muted" style="margin-top:8px">Company-managed devices may block the microphone, screen sharing or pop-ups — ask IT to allow this site. Audio, screenshots and text are processed by OpenAI: use company data only once your company approves external AI.</p>
+    </section>
+  </main>
+</div>
+<script src="/copilot/assets/common.js"></script>
+<script>
+  Copilot.init('help');
+  document.querySelectorAll('[data-step]').forEach(cb => {
+    cb.checked = Copilot.pref(`guide:${cb.dataset.step}`) === true;
+    cb.addEventListener('change', () => Copilot.pref(`guide:${cb.dataset.step}`, cb.checked));
+  });
+</script>
+</body>
+</html>

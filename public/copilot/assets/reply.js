@@ -77,5 +77,45 @@
     }
   });
 
+  // ---------------------------------------------------------------
+  // Read my screen
+  // ---------------------------------------------------------------
+  async function runScreen(getBlob) {
+    let blob;
+    try {
+      blob = await getBlob();
+    } catch (err) {
+      if (err.name !== 'NotAllowedError') toast(`Screen capture failed: ${err.message}`, 'error');
+      return;
+    }
+    if (!blob) return;
+    blob = await ScreenReader.shrink(blob);
+    const url = URL.createObjectURL(blob);
+    $('#result').innerHTML = `<img class="screen-shot" src="${url}" alt="" /><div class="empty"><span class="spinner"></span> Reading the screen, translating and drafting…</div>`;
+    try {
+      const r = await ScreenReader.analyze(blob, {
+        context_id: $('#context').value || null,
+        contact_id: $('#contact').value || null,
+        note: $('#note').value,
+        reply_language: $('#reply-lang').value,
+        document_ids: [...document.querySelectorAll('#doc-checks input:checked')].map(i => i.value),
+      });
+      $('#result').innerHTML = ScreenReader.resultHtml(r, { imageUrl: url });
+    } catch (err) {
+      $('#result').innerHTML = `<div class="notice error">${esc(err.message)}</div>`;
+    }
+  }
+
+  if (!ScreenReader.canCaptureScreen()) {
+    // Phones: no screen capture in browsers → photo / screenshot instead
+    $('#read-screen').textContent = '📷 Photo or screenshot';
+    $('#read-image').classList.add('hidden');
+    $('#screen-hint').textContent = 'Take a photo or pick a screenshot of the email, document, slide or chart.';
+    $('#read-screen').addEventListener('click', () => runScreen(() => ScreenReader.pickImage()));
+  } else {
+    $('#read-screen').addEventListener('click', () => runScreen(() => ScreenReader.captureOnce()));
+    $('#read-image').addEventListener('click', () => runScreen(() => ScreenReader.pickImage()));
+  }
+
   setup().catch(err => toast(err.message, 'error'));
 })();

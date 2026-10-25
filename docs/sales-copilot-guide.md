@@ -6,12 +6,23 @@ The Sales Copilot is a private assistant for meetings and messages. It lives ins
 
 ## 1. Supported setup
 
-- **Browser:** Chrome or Edge, on a Windows or macOS desktop. Safari, Firefox and phones are not supported.
+| Device | What works |
+|---|---|
+| Windows / macOS — Chrome or Edge (116+ for the pop-out) | Everything |
+| Android — Chrome | In-person mode, follow a session from another device, "Read my screen" via photo/screenshot, replies, contacts, morning summary |
+| iPhone / iPad — Safari, iOS 16.4+ (Chrome on iOS behaves the same) | Same as Android |
+| Firefox, Safari on Mac | Not supported |
+
+Phones cannot capture audio from other apps (Zoom, LINE calls) or stay on top of other apps. Those features need a computer.
+
 - **Capturing the other side of a call:**
   - **Windows:** share the **entire screen** and tick **“Share system audio”**. This captures desktop apps (Zoom, Teams, LINE calls). You can also share just the browser tab of the meeting and tick **“Share tab audio”**.
   - **macOS:** run the meeting in a **browser tab** (Meet, Zoom web, Teams web) and share **that tab** with **“Share tab audio”**. macOS browsers cannot capture audio from desktop apps.
 - **Company computers:** managed computers may block screen capture, the microphone or pop-up windows. IT has to allow the site.
 - **Privacy:** audio and text are processed by OpenAI. Only use the copilot with company data once the company approves external AI.
+- **Screen sharing:** the copilot is a website, and a website cannot hide itself from screen sharing or recordings (only a desktop app can). In the meeting, share only the meeting window or tab, not the whole screen.
+- **Phones (in-person mode):** keep the page open and the screen on. The copilot asks the phone to stay awake, but if the phone locks or you switch apps, the browser stops the microphone. Come back and tap **Resume audio capture**.
+- **Bluetooth earphones / smart glasses** (e.g. Ray-Ban Meta): pair them with the phone or computer. They then work as a normal microphone and speaker, and you can pick them under **Microphone**. This is best-effort: there is no direct integration with the glasses.
 - **Earphones:** wear earphones so the meeting does not hear the copilot's voice. On Windows, if you share the entire screen with system audio, the copilot's voice can be captured too. To avoid that, share only the meeting tab, or pick a different output device in the playback bar (Chrome shows a device picker when there is more than one).
 
 ---
@@ -74,11 +85,39 @@ Controls: **Play**, **Pause**, **Replay last**, **Mute**. Audio plays only on th
 
 ### Pop-out window
 
-**⧉ Pop out** opens a small window that stays on top of other apps (Chrome/Edge 116+, Document Picture-in-Picture). It shows the three panels as tabs, plus the playback controls. If your browser does not support it, a normal popup opens instead and a notice says it will not stay on top. If nothing opens, allow pop-ups for the site.
+**⧉ Pop out** opens a small window that stays on top of other apps (Chrome/Edge 116+, Document Picture-in-Picture). It shows the three panels as tabs, a 📷 tab for **Read my screen**, and the playback controls. You can drag it anywhere; **✕** hides it, and **Pop out** brings it back. If your browser does not support it, a normal popup opens instead and a notice says it will not stay on top. If nothing opens, allow pop-ups for the site.
+
+### In-person mode (microphone only, phone or computer)
+
+For lunches, office visits and events, without Zoom or Meet:
+
+1. **New session** → **In person**. This is the only option on phones.
+2. Pick the languages and the context, press **Start** and allow the microphone.
+3. Put the phone between you, screen up, and keep the page open.
+4. On a phone, the three panels are tabs: **1 · Transcript**, **2 · They ask**, **3 · Replies**.
+
+One microphone hears both people, so the AI guesses the speaker. Lines show **ME?**, **THEM?** or **VOICE** when it cannot tell. Panels 2 and 3 work the same as in online meetings.
+
+### Follow on another device
+
+**📱 Other device** shows a link and a QR code. Open it on a phone or tablet where you are logged in with the same account. That device shows the three panels live and can read them aloud with play, pause, replay and mute, while the computer does the listening.
+
+### Read my screen
+
+**📷 Read screen**, in the session bar or the pop-out, and **📷 Read my screen** on the Reply assistant page, capture the window you choose: an email, document, slide, image or chart. You get:
+
+- the text that was read
+- a translation into your language
+- a summary
+- draft replies with **Copy** buttons
+
+During a meeting you can also read the shared meeting screen, for example their slides. On phones, the button takes a photo or lets you pick a screenshot instead. Images are sent to OpenAI for reading but are not stored; only the extracted text and the result are saved in History.
 
 ---
 
 ## 5. Reply assistant (any channel)
+
+Personal LINE and LinkedIn accounts have no API: LINE allows it only for Official Accounts, and LinkedIn only for approved partners. So for personal accounts, paste-and-copy (or **Read my screen**) is the only option, and you always send the message yourself.
 
 1. Choose the **channel**: Email, LINE, WhatsApp, LinkedIn, Messenger, SMS or Other.
 2. Optionally choose a **contact** and a **context profile**, and tick **documents**.
@@ -145,4 +184,13 @@ copilot_setup.sql     Supabase tables
 
 ### Out of scope for this pilot
 
-Multiple users and workspaces, credits, payments; KOL coverage reports; Chrome extension; direct LINE/WhatsApp/Messenger/SMS integrations; automatic slide capture with OCR; voice cloning; mobile app. The data already has a `user_id` column everywhere, ready for multiple users later.
+- **Milestone 2:** voice cloning, so the system can speak on your behalf.
+- **Not included, can be quoted separately:**
+  - KOL PowerPoint coverage reports. TikTok, Instagram and Facebook block automatic reading of posts.
+  - Automatic sending of messages or broadcasts. This needs business accounts and their APIs.
+  - Multiple users and workspaces, credits and payments.
+  - A desktop app that hides itself from screen sharing.
+  - A native mobile app.
+  - Direct integration with smart glasses beyond working as a Bluetooth headset.
+
+The data already has a `user_id` column everywhere, ready for multiple users later.

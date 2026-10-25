@@ -5,12 +5,20 @@
 const CopilotRender = (() => {
   const { esc, fmtTime, sourcesHtml, uncertainTag, uncertainNote } = Copilot;
 
+  // In-person mode (one microphone): speaker is a guess, shown with "?"
+  function whoHtml(l) {
+    if (l.source !== 'room') return `<span class="who ${l.source}">${l.source === 'me' ? 'ME' : 'THEM'}</span>`;
+    if (l.speaker === 'me') return '<span class="who me guess" title="Guessed by the AI">ME?</span>';
+    if (l.speaker === 'them') return '<span class="who them guess" title="Guessed by the AI">THEM?</span>';
+    return '<span class="who voice">VOICE</span>';
+  }
+
   function lineHtml(l) {
     const tr = l.translation && l.translation.trim() && l.translation.trim() !== l.text.trim()
       ? `<div class="line-tr">→ ${esc(l.translation)}</div>`
       : (!l.translated ? '<div class="line-tr muted small">translating…</div>' : '');
     return `<div class="line" data-line="${esc(l.id)}">
-      <div class="line-meta"><span class="who ${l.source}">${l.source === 'me' ? 'ME' : 'THEM'}</span><span>${fmtTime(l.t)}</span>${l.language ? `<span>${esc(l.language.toUpperCase())}</span>` : ''}</div>
+      <div class="line-meta">${whoHtml(l)}<span>${fmtTime(l.t)}</span>${l.language ? `<span>${esc(l.language.toUpperCase())}</span>` : ''}</div>
       <div class="line-text">${esc(l.text)}</div>${tr}</div>`;
   }
 
@@ -72,5 +80,5 @@ const CopilotRender = (() => {
     return p.uncertain ? `${text}. Careful, this is uncertain.` : text;
   }
 
-  return { lineHtml, transcriptHtml, panel2Html, panel3Html, panel2Speech, panel3Speech };
+  return { whoHtml, lineHtml, transcriptHtml, panel2Html, panel3Html, panel2Speech, panel3Speech };
 })();

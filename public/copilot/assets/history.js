@@ -29,7 +29,8 @@
   }
 
   function transcriptPlain(s) {
-    return (s.transcript || []).map(l => `[${l.t ? new Date(l.t).toLocaleTimeString('en-GB') : ''}] ${l.source === 'me' ? 'ME' : 'THEM'}: ${l.text}${l.translation ? `\n    → ${l.translation}` : ''}`).join('\n');
+    const who = (l) => (l.source === 'room' ? (l.speaker === 'me' ? 'ME?' : l.speaker === 'them' ? 'THEM?' : 'VOICE') : l.source === 'me' ? 'ME' : 'THEM');
+    return (s.transcript || []).map(l => `[${l.t ? new Date(l.t).toLocaleTimeString('en-GB') : ''}] ${who(l)}: ${l.text}${l.translation ? `\n    → ${l.translation}` : ''}`).join('\n');
   }
 
   function meetingHtml(s) {
@@ -52,7 +53,8 @@
     const r = (s.suggestions || [])[0] || {};
     return `
       <div class="grid grid-2">
-        <div class="card"><h2>Incoming (${esc((s.settings?.channel || '').toUpperCase())})</h2><div class="ai-block small">${esc(s.transcript?.[0]?.text || '')}</div>
+        <div class="card"><h2>${s.settings?.channel === 'screen' ? 'Read from screen' : `Incoming (${esc((s.settings?.channel || '').toUpperCase())})`}</h2><div class="ai-block small">${esc(s.transcript?.[0]?.text || '')}</div>
+          ${s.transcript?.[0]?.translation ? `<div class="section-label">Translation</div><div class="ai-block small">${esc(s.transcript[0].translation)}</div>` : ''}
           ${s.settings?.note ? `<div class="section-label">My note</div><div>${esc(s.settings.note)}</div>` : ''}</div>
         <div class="card"><h2>What they want ${uncertainTag(r)}</h2><p>${esc(r.summary || '')}</p>
           ${r.wants?.length ? `<ul class="qlist" style="margin-top:8px">${r.wants.map(w => `<li>${esc(w)}</li>`).join('')}</ul>` : ''}${uncertainNote(r)}</div>
@@ -78,7 +80,7 @@
     }
     const c = contacts.get(s.contact_id);
     $('#d-title').textContent = s.title || 'Untitled';
-    $('#d-meta').innerHTML = `${s.kind === 'reply' ? 'Reply assistant' : 'Meeting'} · ${fmtDateTime(s.started_at)}${s.ended_at && s.kind === 'meeting' ? ` → ${new Date(s.ended_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}` : ''}${c ? ` · <a href="/copilot/contacts?id=${c.id}">${esc(c.name)}</a>` : ''}${s.status === 'live' ? ' · <span class="tag">Interrupted (server restarted before Stop)</span>' : ''}`;
+    $('#d-meta').innerHTML = `${s.kind === 'reply' ? (s.settings?.channel === 'screen' ? 'Read my screen' : 'Reply assistant') : (s.settings?.mode === 'room' ? 'In-person conversation' : 'Online meeting')} · ${fmtDateTime(s.started_at)}${s.ended_at && s.kind === 'meeting' ? ` → ${new Date(s.ended_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}` : ''}${c ? ` · <a href="/copilot/contacts?id=${c.id}">${esc(c.name)}</a>` : ''}${s.status === 'live' ? ' · <span class="tag">Interrupted (server restarted before Stop)</span>' : ''}`;
     $('#d-body').innerHTML = s.kind === 'reply' ? replyHtml(s) : meetingHtml(s);
     $('#d-copy').style.display = s.kind === 'reply' ? 'none' : '';
     $('#d-copy').onclick = (e) => Copilot.copyText(transcriptPlain(s), e.currentTarget);

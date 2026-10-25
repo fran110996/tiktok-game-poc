@@ -20,6 +20,7 @@ const PAGES = {
   '/contacts': 'contacts.html',
   '/upcoming': 'upcoming.html',
   '/monitor': 'monitor.html',
+  '/help': 'help.html',
 };
 
 const router = express.Router({ strict: false });

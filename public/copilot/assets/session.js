@@ -12,6 +12,7 @@
   Copilot.init('session');
 
   const CHUNK_MS = 5000;
+  const VIEW_ONLY = new URLSearchParams(location.search).get('view') === '1';
   const SILENCE_RMS = 0.012; // chunks quieter than this are not sent
 
   const state = {
@@ -60,6 +61,41 @@
     cSel.innerHTML += contacts.map(c => `<option value="${c.id}">${esc(c.name)}${c.company ? ` — ${esc(c.company)}` : ''}</option>`).join('');
     const preset = new URLSearchParams(location.search).get('contact');
     if (preset) cSel.value = preset;
+
+    // Mode: phones cannot capture other apps' audio → in-person by default
+    const canShare = Boolean(navigator.mediaDevices?.getDisplayMedia);
+    if (!canShare) {
+      const meetingRadio = document.querySelector('input[name=mode][value=meeting]');
+      meetingRadio.disabled = true;
+      meetingRadio.closest('label').querySelector('.mode-card').insertAdjacentHTML('beforeend', '<div class="small" style="color:var(--orange);margin-top:4px">Needs Chrome/Edge on a computer.</div>');
+    }
+    const savedMode = pref('mode');
+    const mode = !canShare ? 'room' : (savedMode === 'room' ? 'room' : 'meeting');
+    document.querySelector(`input[name=mode][value=${mode}]`).checked = true;
+    document.querySelectorAll('input[name=mode]').forEach(r => r.addEventListener('change', applyMode));
+    applyMode();
+    listMics().catch(() => {});
+  }
+
+  function currentMode() {
+    return document.querySelector('input[name=mode]:checked')?.value || 'meeting';
+  }
+
+  function applyMode() {
+    const room = currentMode() === 'room';
+    $('#meeting-sources').classList.toggle('hidden', room);
+    $('#room-tip').classList.toggle('hidden', !room);
+    pref('mode', currentMode());
+  }
+
+  // Microphones (labels are only visible after mic permission was granted once)
+  async function listMics() {
+    if (!navigator.mediaDevices?.enumerateDevices) return;
+    const mics = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'audioinput' && d.deviceId && d.deviceId !== 'default');
+    const sel = $('#mic-select');
+    const saved = pref('micId');
+    sel.innerHTML = '<option value="">Default microphone</option>' + mics.map((d, i) => `<option value="${esc(d.deviceId)}">${esc(d.label || `Microphone ${i + 1}`)}</option>`).join('');
+    if (saved && mics.some(d => d.deviceId === saved)) sel.value = saved;
   }
 
   // =============================================================
@@ -88,7 +124,7 @@
       this.analyser.fftSize = 1024;
       src.connect(this.analyser);
       this.buf = new Float32Array(this.analyser.fftSize);
-      this.meterEl = $(`#chip-${source} .meter > i`);
+      this.meterEl = $(`#chip-${source === 'them' ? 'them' : 'me'} .meter > i`);
     }
 
     start() {
@@ -114,10 +150,12 @@
       this.peak = 0;
       rec.ondataavailable = (e) => { if (e.data && e.data.size) parts.push(e.data); };
       rec.onstop = () => {
+        // If the audio meter is not running (some phones), never drop chunks as "silent"
+        const metering = audioCtx().state === 'running';
         const peak = this.peak;
         if (this.running) this.next();
         const blob = new Blob(parts, { type: rec.mimeType || this.mime || 'audio/webm' });
-        if (peak >= SILENCE_RMS && blob.size > 1500) this.upload(blob, t);
+        if ((!metering || peak >= SILENCE_RMS) && blob.size > 1500) this.upload(blob, t);
       };
       rec.start();
       this.current = rec;
@@ -136,7 +174,7 @@
       try {
         await api(`/sessions/${state.session.id}/audio`, { method: 'POST', form });
       } catch (err) {
-        notice(`Audio upload failed (${this.source === 'me' ? 'Me' : 'Them'}): ${err.message}`, 'error');
+        notice(`Audio upload failed (${this.source === 'them' ? 'Them' : 'microphone'}): ${err.message}`, 'error');
       } finally {
         this.inflight--;
       }
@@ -154,13 +192,19 @@
   async function captureSources({ mic, screen }) {
     const out = { mic: null, screen: null, warnings: [] };
     if (mic) {
+      const micId = $('#mic-select').value;
+      const audio = { echoCancellation: true, noiseSuppression: true, autoGainControl: true };
+      if (micId) audio.deviceId = { exact: micId };
       try {
-        out.mic = await navigator.mediaDevices.getUserMedia({
-          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-        });
+        out.mic = await navigator.mediaDevices.getUserMedia({ audio });
       } catch (err) {
-        out.warnings.push(`Microphone not available (${err.name}). Continuing without "Me".`);
+        if (micId && err.name === 'OverconstrainedError') {
+          // Saved device disappeared (e.g. earphones disconnected) → default mic
+          out.mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } }).catch(() => null);
+        }
+        if (!out.mic) out.warnings.push(`Microphone not available (${err.name}). Check the browser's microphone permission.`);
       }
+      if (out.mic) listMics().catch(() => {});
     }
     if (screen) {
       try {
@@ -193,14 +237,19 @@
   }
 
   async function startCapture(opts) {
-    const cap = await captureSources(opts);
+    const room = opts.mode === 'room';
+    const cap = await captureSources(room ? { mic: true, screen: false } : opts);
     cap.warnings.forEach(w => notice(w));
     if (!cap.mic && !cap.screen) return false;
-    if (audioCtx().state === 'suspended') await audioCtx().resume();
+    if (audioCtx().state === 'suspended') await audioCtx().resume().catch(() => {});
+
+    $('#chip-me-label').textContent = room ? 'Voices' : 'Me';
+    $('#chip-them').classList.toggle('hidden', room);
+    $('#p1-legend').textContent = room ? 'One microphone · ME? / THEM? are AI guesses' : 'Me = microphone · Them = shared audio';
 
     if (cap.mic) {
       state.streams.push(cap.mic);
-      const r = new SourceRecorder(cap.mic, 'me');
+      const r = new SourceRecorder(cap.mic, room ? 'room' : 'me');
       r.start();
       state.recorders.push(r);
       setChip('me', true);
@@ -339,10 +388,16 @@
   // =============================================================
   async function start() {
     const btn = $('#start-btn');
-    const mic = $('#use-mic').checked;
-    const screen = $('#use-screen').checked;
+    const mode = currentMode();
+    const mic = mode === 'room' || $('#use-mic').checked;
+    const screen = mode === 'meeting' && $('#use-screen').checked;
     if (!mic && !screen) return toast('Choose at least one audio source', 'error');
-    if (!window.MediaRecorder) return toast('This browser cannot record audio. Use Chrome or Edge on desktop.', 'error');
+    if (!window.MediaRecorder) return toast('This browser cannot record audio. Use Chrome/Edge (computer or Android) or Safari on iPhone (iOS 16.4+).', 'error');
+
+    // Inside the click: unlock audio meter + playback (required on iPhone)
+    audioCtx().resume().catch(() => {});
+    Speaker.unlock();
+    pref('micId', $('#mic-select').value);
 
     btn.disabled = true;
     btn.textContent = 'Starting…';
@@ -353,10 +408,10 @@
 
     // Ask for devices first (user gesture), then create the session
     state.startedAt = Date.now();
-    const okCapture = await startCapture({ mic, screen });
+    const okCapture = await startCapture({ mic, screen, mode });
     if (!okCapture) {
       btn.disabled = false;
-      btn.textContent = '● Start session';
+      btn.textContent = '● Start';
       $('#setup-view').insertAdjacentHTML('afterbegin', `<div class="notice error">No audio source could be captured. ${[...document.querySelectorAll('#live-notice .notice')].map(n => esc(n.textContent.replace('dismiss', ''))).join(' ')}</div>`);
       $('#live-notice').innerHTML = '';
       return;
@@ -373,28 +428,51 @@
           my_language: $('#my-lang').value,
           their_language: $('#their-lang').value,
           sources: { mic, screen },
+          mode,
         },
       });
     } catch (err) {
       stopCapture();
       btn.disabled = false;
-      btn.textContent = '● Start session';
+      btn.textContent = '● Start';
       return toast(err.message, 'error');
     }
     history.replaceState(null, '', `/copilot/session?id=${state.session.id}`);
     showLive();
     connectSocket();
+    keepAwake();
   }
 
   async function resume() {
-    const ok = await startCapture({ mic: true, screen: true });
-    if (ok) $('#resume-btn').style.display = 'none';
+    audioCtx().resume().catch(() => {});
+    Speaker.unlock();
+    const mode = state.session?.settings?.mode || 'meeting';
+    const canShare = Boolean(navigator.mediaDevices?.getDisplayMedia);
+    const ok = await startCapture({ mic: true, screen: mode === 'meeting' && canShare, mode });
+    if (ok) {
+      $('#resume-btn').style.display = 'none';
+      keepAwake();
+    }
   }
+
+  // Keep the phone screen on while listening (a locked phone stops the microphone)
+  async function keepAwake() {
+    if (!('wakeLock' in navigator)) return;
+    try {
+      state.wakeLock = await navigator.wakeLock.request('screen');
+    } catch (err) {
+      // Not critical (battery saver, unsupported)
+    }
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && state.session && state.recorders.length) keepAwake();
+  });
 
   async function stop() {
     if (!confirm('Stop and save this session?')) return;
     $('#stop-btn').disabled = true;
     stopCapture();
+    if (state.wakeLock) state.wakeLock.release().catch(() => {});
     Speaker.stopAll();
     clearInterval(state.timer);
     $('#live-dot').className = 'dot';
@@ -435,10 +513,119 @@
     showLive();
     renderTranscript(); renderPanel2(); renderPanel3();
     setChip('me', false); setChip('them', false);
-    $('#resume-btn').style.display = '';
-    notice('Page was reloaded — click "Resume audio capture" to continue listening.', 'info');
+    const room = s.settings?.mode === 'room';
+    $('#chip-me-label').textContent = room ? 'Voices' : 'Me';
+    $('#chip-them').classList.toggle('hidden', room);
+    if (VIEW_ONLY) {
+      // Second device (phone/tablet): follow the panels and listen; no capture here
+      $('#chip-me').classList.add('hidden');
+      $('#chip-them').classList.add('hidden');
+      $('#screen-btn').classList.add('hidden');
+      $('#device-btn').classList.add('hidden');
+      notice('Following this session from another device. Choose a panel to read aloud and press ▶ once to enable sound.', 'info');
+    } else {
+      $('#resume-btn').style.display = '';
+      notice('Page was reloaded — click "Resume audio capture" to continue listening.', 'info');
+    }
     connectSocket();
   }
+
+  // =============================================================
+  // OTHER DEVICE (link to follow the session on a phone/tablet)
+  // =============================================================
+  async function showDeviceLink() {
+    const url = `${location.origin}/copilot/session?id=${state.session.id}&view=1`;
+    const m = Copilot.modal(`
+      <h2>Follow on another device</h2>
+      <p class="small muted" style="margin-bottom:10px">Open this link on your phone or tablet (log in with the same account). It shows the three panels live and can read them aloud on that device — handy with earphones.</p>
+      <div class="row" style="margin-bottom:12px"><input type="text" readonly value="${esc(url)}" style="flex:1" /><button class="btn-primary btn-sm" data-copy="${esc(url)}">Copy link</button></div>
+      <div id="qr" class="qr-box"></div>
+      <div class="row" style="margin-top:14px"><button class="btn-ghost" data-close>Close</button></div>`);
+    try {
+      if (!window.QRCode) {
+        await new Promise((resolve, reject) => {
+          const sc = document.createElement('script');
+          sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+          sc.onload = resolve;
+          sc.onerror = reject;
+          document.head.appendChild(sc);
+        });
+      }
+      new window.QRCode(m.el.querySelector('#qr'), { text: url, width: 180, height: 180 });
+    } catch (err) {
+      m.el.querySelector('#qr').remove();
+    }
+  }
+
+  // =============================================================
+  // READ MY SCREEN (during a session)
+  // =============================================================
+  let lastScreen = null; // { html } — also shown in the pop-out
+
+  async function readScreen(win = window) {
+    if (!state.session) return;
+    const shared = state.streams.find(s => s.getVideoTracks().some(t => t.readyState === 'live'));
+    let getBlob;
+    if (!ScreenReader.canCaptureScreen()) {
+      getBlob = () => ScreenReader.pickImage(win.document);
+    } else if (win !== window) {
+      // From the pop-out: the user is looking at another app → let them pick it
+      getBlob = () => ScreenReader.captureOnce(win);
+    } else if (shared) {
+      const choice = await new Promise((resolve) => {
+        const m = Copilot.modal(`
+          <h2>Read which screen?</h2>
+          <div class="stack">
+            <button class="btn-primary" data-pick="shared">The shared meeting screen (e.g. their slides)</button>
+            <button class="btn-ghost" data-pick="other">Another window (email, document…)</button>
+            <button class="btn-ghost" data-pick="file">Upload a screenshot / photo</button>
+          </div>`, { onClose: () => resolve(null) });
+        m.el.querySelectorAll('[data-pick]').forEach(b => b.addEventListener('click', () => { resolve(b.dataset.pick); m.close(); }));
+      });
+      if (!choice) return;
+      getBlob = choice === 'shared' ? () => ScreenReader.frameFromTrack(shared.getVideoTracks()[0])
+        : choice === 'file' ? () => ScreenReader.pickImage()
+          : () => ScreenReader.captureOnce();
+    } else {
+      getBlob = () => ScreenReader.captureOnce(win);
+    }
+
+    let blob;
+    try {
+      blob = await getBlob();
+    } catch (err) {
+      if (err.name !== 'NotAllowedError') toast(`Screen capture failed: ${err.message}`, 'error');
+      return;
+    }
+    if (!blob) return;
+    blob = await ScreenReader.shrink(blob);
+    const imageUrl = URL.createObjectURL(blob);
+    lastScreen = { html: `<img class="screen-shot" src="${imageUrl}" alt="" /><div class="empty"><span class="spinner"></span> Reading the screen…</div>` };
+    const m = win === window ? Copilot.modal(`<h2>Read my screen</h2><div id="scr-body">${lastScreen.html}</div><div class="row" style="margin-top:12px"><button class="btn-ghost" data-close>Close</button></div>`) : null;
+    state.targets.forEach(t => t.showScreen && t.showScreen());
+    try {
+      const r = await ScreenReader.analyze(blob, {
+        context_id: state.session.settings?.context_id,
+        contact_id: state.session.settings?.contact_id || state.session.contact_id,
+        my_language: state.session.settings?.my_language,
+        document_ids: state.session.settings?.document_ids,
+      });
+      lastScreen = { html: ScreenReader.resultHtml(r, { imageUrl }) };
+    } catch (err) {
+      lastScreen = { html: `<div class="notice error">${esc(err.message)}</div>` };
+    }
+    if (m && m.el.isConnected) m.el.querySelector('#scr-body').innerHTML = lastScreen.html;
+    state.targets.forEach(t => t.render());
+  }
+
+  // =============================================================
+  // PHONE LAYOUT: one panel at a time
+  // =============================================================
+  document.querySelectorAll('[data-mtab]').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('[data-mtab]').forEach(x => x.classList.toggle('active', x === b));
+    document.querySelectorAll('.panels .panel').forEach(p => p.classList.toggle('mobile-active', p.dataset.panel === b.dataset.mtab));
+    if (b.dataset.mtab === '1') $('#p1-body').scrollTop = $('#p1-body').scrollHeight;
+  }));
 
   // =============================================================
   // EARPHONE PLAYBACK (TTS)
@@ -519,14 +706,32 @@
         state.targets.forEach(t => t.render());
       },
       onLine(line) {
-        if (panel !== 1 || line.source !== 'them') return;
+        if (panel !== 1 || line.source === 'me' || line.speaker === 'me') return;
         enqueue(line.translation || line.text);
+      },
+      // Must run inside a click: lets later playback start without a gesture (iPhone)
+      unlock() {
+        try {
+          const ctx = audioCtx();
+          const buf = ctx.createBuffer(1, 1, 22050);
+          const src = ctx.createBufferSource();
+          src.buffer = buf;
+          src.connect(ctx.destination);
+          src.start(0);
+          if (!audio.src) {
+            audio.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YQAAAAA=';
+            audio.play().then(() => audio.pause()).catch(() => {});
+          }
+        } catch (err) {
+          // ignore
+        }
       },
       onPanel(n, p) {
         if (n === 2) { const t = R.panel2Speech(p, spoken2); if (panel === 2) enqueue(t); }
         if (n === 3) { const t = R.panel3Speech(p, spoken3); if (panel === 3) enqueue(t); }
       },
       play() {
+        this.unlock();
         paused = false;
         if (audio.src && audio.paused && !audio.ended && busy) { audio.play(); status('Speaking…'); } else pump();
       },
@@ -595,9 +800,11 @@
     doc.body.innerHTML = `
       <div class="pip-wrap">
         <div class="pip-tabs">
-          <button data-tab="1">1 · Transcript</button>
-          <button data-tab="2">2 · They ask</button>
-          <button data-tab="3">3 · Replies</button>
+          <button data-tab="1">1 · Talk</button>
+          <button data-tab="2">2 · Ask</button>
+          <button data-tab="3">3 · Reply</button>
+          <button data-tab="4" title="Read my screen">📷</button>
+          <button id="pip-hide" title="Hide this window (reopen with Pop out)" style="flex:0 0 auto">✕</button>
         </div>
         ${isPip ? '' : '<div class="notice" style="margin:6px;font-size:0.75rem">Always-on-top is not available in this browser (needs Chrome/Edge 116+). This is a normal popup window.</div>'}
         <div class="pip-body" id="pip-body"></div>
@@ -619,12 +826,20 @@
         if (tab === 1) body.innerHTML = R.transcriptHtml(state.lines, { limit: 60 });
         if (tab === 2) body.innerHTML = R.panel2Html(state.panel2, state.done);
         if (tab === 3) body.innerHTML = R.panel3Html(state.panel3);
+        if (tab === 4) {
+          body.innerHTML = `<button class="btn-go" id="pip-read" style="width:100%;justify-content:center;margin-bottom:10px">📷 Read my screen</button>
+            <div class="small muted" style="margin-bottom:10px">Pick the window with the email, document, slide or chart. You get a translation and draft replies to copy.</div>
+            ${lastScreen ? lastScreen.html : ''}`;
+          doc.getElementById('pip-read').addEventListener('click', () => readScreen(win));
+        }
         if (tab === 1 && stick) body.scrollTop = body.scrollHeight;
         doc.getElementById('pip-speak').value = String(Speaker.panel);
         doc.getElementById('pip-mute').textContent = Speaker.muted ? '🔈' : '🔇';
       },
       status(msg) { doc.getElementById('pip-status').textContent = msg; },
+      showScreen() { tab = 4; target.render(); },
     };
+    doc.getElementById('pip-hide').addEventListener('click', () => win.close());
 
     doc.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => {
       tab = Number(b.dataset.tab);
@@ -678,6 +893,10 @@
   }
 
   $('#popout-btn').addEventListener('click', openPopout);
+  $('#screen-btn').addEventListener('click', () => readScreen(window));
+  $('#device-btn').addEventListener('click', showDeviceLink);
+  // Phones/tablets have no always-on-top windows
+  if (!('documentPictureInPicture' in window) && /Android|iPhone|iPad/i.test(navigator.userAgent)) $('#popout-btn').classList.add('hidden');
 
   // =============================================================
   // WIRING
