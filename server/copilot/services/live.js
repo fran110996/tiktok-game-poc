@@ -7,6 +7,7 @@
 // =============================================================
 
 const crypto = require('crypto');
+const config = require('../config');
 const store = require('./store');
 const ai = require('./openai');
 const { languageName } = require('./languages');
@@ -148,7 +149,7 @@ class LiveSessions {
     const bg = await loadBackground(userId, settings);
     const startedAt = new Date().toISOString();
     const title = (input.title || '').trim()
-      || `${settings.mode === 'room' ? 'Conversation' : 'Meeting'}${bg.contact ? ` with ${bg.contact.name}` : ''} — ${new Date().toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}`;
+      || `${settings.mode === 'room' ? 'Conversation' : 'Meeting'}${bg.contact ? ` with ${bg.contact.name}` : ''} — ${new Date().toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: config.timezone })}`;
 
     const row = await store.insert('copilot_sessions', userId, {
       kind: 'meeting',
