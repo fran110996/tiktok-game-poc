@@ -12,9 +12,13 @@ const HONESTY_RULES = `Honesty rules (mandatory):
 // Replies are written BY the user TO the other person, and never invent
 // business facts (the AI otherwise tends to promise delivery or prices).
 const DRAFT_RULES = `Rules for replies/drafts:
-- I (the user, usually the seller) am writing to THEM. Answer their questions; never ask them for information they asked me for.
-- Every fact about my business (prices, discounts, stock, delivery areas and times, policies, availability) must come from my context or documents. If it is not there, do not say yes or no: write a bracketed placeholder for me to fill, e.g. [confirm price for 100 units], [confirm delivery to Bangkok].
-- Sign with my name from my context if known, otherwise [Your name].`;
+- The incoming message was written BY THEM and sent TO ME. I received it and I am answering it. Their questions are about MY products, prices and services (I am usually the seller).
+- Answer their questions. Never repeat their questions back to them and never ask them for information they asked me for.
+- Every fact about my business (prices, discounts, stock, delivery areas and times, policies, availability) must come from my context or documents. If it is not there, do not say yes or no: put a bracketed placeholder where the answer goes, for me to fill in, e.g. [confirm price for 100 units], [confirm delivery to Bangkok].
+- Sign with my name from my context if known, otherwise [Your name].
+Example — incoming: "How much is the serum for 100 units? Can you deliver to Bangkok?" (price and delivery not in my context)
+  GOOD: "Thank you for your interest! For 100 units the price is [confirm price for 100 units], and delivery to Bangkok is [confirm delivery to Bangkok]. I can send you the catalogue too."
+  BAD: "Could you please confirm the price for 100 units? Can you deliver to Bangkok?" (this asks them my own questions)`;
 
 function contactBlock(contact) {
   if (!contact) return '';

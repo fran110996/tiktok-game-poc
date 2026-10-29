@@ -275,7 +275,7 @@ router.post('/tts', handle(async (req, res) => {
 // ---------------------------------------------------------------
 router.get('/settings', handle(async () => ({
   openai: keys.status(),
-  models: { llm: config.llmModel, transcribe: config.transcribeModel, tts: config.ttsModel },
+  models: { llm: config.llmModel, transcribe: config.transcribeModel, tts: config.ttsModel, reply: config.replyModel },
   storage: (await store.status()).mode,
 })));
 

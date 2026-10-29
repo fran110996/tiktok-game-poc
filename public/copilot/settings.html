@@ -72,7 +72,7 @@
   async function load() {
     const s = await api('/settings');
     render(s.openai);
-    $('#models').textContent = `Language: ${s.models.llm} · Transcription: ${s.models.transcribe} · Voice: ${s.models.tts}`;
+    $('#models').textContent = `Live: ${s.models.llm} · Drafts: ${s.models.reply} · Transcription: ${s.models.transcribe} · Voice: ${s.models.tts}`;
   }
 
   function msg(html, type) {

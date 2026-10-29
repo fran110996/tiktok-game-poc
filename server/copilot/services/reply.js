@@ -4,6 +4,7 @@
 // channel's style. Saved as copilot_sessions rows with kind='reply'.
 // =============================================================
 
+const config = require('../config');
 const store = require('./store');
 const ai = require('./openai');
 const { languageName } = require('./languages');
@@ -74,9 +75,10 @@ Channel style: ${CHANNEL_STYLES[channel]}
 - "sources": every web page you relied on (title + url). Empty array if none.
 ${DRAFT_RULES}
 ${HONESTY_RULES}`,
-    input: `BACKGROUND:\n${backgroundBlock(bg, (conversation || note).slice(-3000))}\n\nMY NOTE: ${note || '(none)'}\n\n${isNew ? 'NO PREVIOUS CONVERSATION: write a new message based on my note. "summary" = what the message should achieve; "wants" = empty array; "detected_language" = the language you write in.' : `CONVERSATION / EMAIL:\n${conversation}`}`,
+    input: `BACKGROUND:\n${backgroundBlock(bg, (conversation || note).slice(-3000))}\n\nMY NOTE: ${note || '(none)'}\n\n${isNew ? 'NO PREVIOUS CONVERSATION: write a new message based on my note. "summary" = what the message should achieve; "wants" = empty array; "detected_language" = the language you write in.' : `INCOMING MESSAGE / CONVERSATION (written by them, sent to me — I am replying):\n${conversation}`}`,
     schema: REPLY_SCHEMA,
     schemaName: 'reply',
+    model: config.replyModel,
     webSearch: true,
     maxOutputTokens: 2000,
     temperature: 0.6,
@@ -175,6 +177,7 @@ ${HONESTY_RULES}`,
     }],
     schema: SCREEN_SCHEMA,
     schemaName: 'screen',
+    model: config.replyModel,
     webSearch: true,
     maxOutputTokens: 3000,
     temperature: 0.4,

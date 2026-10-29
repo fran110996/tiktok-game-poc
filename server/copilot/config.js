@@ -20,6 +20,8 @@ module.exports = {
   llmModel: process.env.COPILOT_LLM_MODEL || 'gpt-4.1-mini',
   transcribeModel: process.env.COPILOT_TRANSCRIBE_MODEL || 'gpt-4o-mini-transcribe',
   ttsModel: process.env.COPILOT_TTS_MODEL || 'gpt-4o-mini-tts',
+  // Drafts (Reply assistant, Read my screen): low volume, quality matters most
+  replyModel: process.env.COPILOT_REPLY_MODEL || 'gpt-4.1',
   ttsVoice: process.env.COPILOT_TTS_VOICE || 'coral',
   webSearchTool: process.env.COPILOT_WEB_SEARCH_TOOL || 'web_search',
   timezone: process.env.COPILOT_TIMEZONE || 'Asia/Bangkok',
