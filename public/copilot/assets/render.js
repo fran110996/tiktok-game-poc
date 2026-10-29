@@ -33,7 +33,7 @@ const CopilotRender = (() => {
 
   // done: Set of action texts ticked by the user
   function panel2Html(p, done = new Set()) {
-    if (!p) return '<div class="empty">Updates every ~20 s or when a question is detected.</div>';
+    if (!p) return '<div class="empty">Updates a few seconds after each new sentence.</div>';
     const actions = p.actions || [];
     const qs = p.open_questions || [];
     return `

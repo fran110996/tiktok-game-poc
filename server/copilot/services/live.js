@@ -15,7 +15,9 @@ const { languageName } = require('./languages');
 const { loadBackground, backgroundBlock } = require('./background');
 const { HONESTY_RULES, DRAFT_RULES, SOURCES_SCHEMA, mergeSources, stripCitationMarkup } = require('./prompts');
 
-const ANALYSIS_INTERVAL_MS = 20000;
+const ANALYSIS_INTERVAL_MS = 20000; // panel 3 (may use web search)
+const PANEL2_DEBOUNCE_MS = 1500;     // panel 2: shortly after each new line
+const PANEL2_MIN_GAP_MS = 4000;
 const PERSIST_INTERVAL_MS = 60000;
 const IDLE_STOP_MS = 30 * 60 * 1000; // tab closed without Stop → auto-stop after 30 min of no audio
 
@@ -178,14 +180,12 @@ class LiveSessions {
       panel3: null,
       suggestionsLog: [],
       status: 'live',
-      lastAnalyzedCount: 0,
-      analyzing: false,
-      rerun: false,
       lastAnalysisAt: 0,
+      lineVersion: 0, // bumps on label corrections so panel 2 re-reads
       detectedTheirLanguage: null,
       lastActivity: Date.now(),
     };
-    s.analysisTimer = setInterval(() => this.analyze(s).catch(() => {}), ANALYSIS_INTERVAL_MS);
+    s.analysisTimer = setInterval(() => this.runPanel3(s).catch(() => {}), ANALYSIS_INTERVAL_MS);
     s.persistTimer = setInterval(() => {
       if (Date.now() - s.lastActivity > IDLE_STOP_MS) this.stop(s).catch(() => {});
       else this.persist(s).catch(() => {});
@@ -252,8 +252,9 @@ class LiveSessions {
     line.translated = true;
     this.emit(s, 'copilot:line', line);
 
+    this.requestPanel2(s);
     if (!isMe && line.speaker !== 'me' && (QUESTION_HINT.test(text) || QUESTION_HINT.test(line.translation)) && Date.now() - s.lastAnalysisAt > 5000) {
-      this.analyze(s).catch(() => {});
+      this.runPanel3(s).catch(() => {});
     }
     return line;
   }
@@ -271,7 +272,9 @@ class LiveSessions {
     const line = s.transcript.find(l => l.id === lineId);
     if (!line) return null;
     this.applySpeaker(line, who);
+    s.lineVersion = (s.lineVersion || 0) + 1;
     this.emit(s, 'copilot:line', line);
+    this.requestPanel2(s);
     return line;
   }
 
@@ -305,28 +308,53 @@ class LiveSessions {
   }
 
   // ---------------------------------------------------------------
+  // Panels 2 and 3 run independently: panel 2 (no web search, fast model,
+  // short transcript) refreshes a few seconds after every new line; panel 3
+  // (may search the web) every ~20 s or when a question is detected.
+  // ---------------------------------------------------------------
   async analyze(s, { force = false } = {}) {
+    this.requestPanel2(s, { now: true, force });
+    await this.runPanel3(s, { force });
+  }
+
+  context(s) {
+    const mine = languageName(s.settings.my_language);
+    return {
+      mine,
+      theirs: languageName(this.theirLanguageCode(s), mine),
+      background: backgroundBlock(s.bg, this.transcriptText(s, 1500)),
+      roomNote: s.settings.mode === 'room'
+        ? '\nThis is an in-person conversation recorded by one microphone: lines are labelled VOICE with a guessed speaker, and the guess can be wrong. Use the content to tell who is asking.'
+        : '',
+    };
+  }
+
+  setBusy(s) {
+    this.emit(s, 'copilot:analyzing', { on: Boolean(s.p2Busy || s.p3Busy) });
+  }
+
+  // Debounced: at most one call in flight, at least PANEL2_MIN_GAP_MS apart.
+  requestPanel2(s, { now = false, force = false } = {}) {
     if (s.status !== 'live' && !force) return;
     if (!s.transcript.length) return;
-    if (!force && s.transcript.length === s.lastAnalyzedCount) return;
-    if (s.analyzing) { s.rerun = true; return; }
+    if (s.p2Busy) { s.p2Rerun = true; return; }
+    clearTimeout(s.p2Timer);
+    const wait = now ? 0 : Math.max(PANEL2_DEBOUNCE_MS, PANEL2_MIN_GAP_MS - (Date.now() - (s.p2StartedAt || 0)));
+    s.p2Timer = setTimeout(() => this.runPanel2(s, { force }).catch(() => {}), wait);
+  }
 
-    s.analyzing = true;
-    s.lastAnalysisAt = Date.now();
-    s.lastAnalyzedCount = s.transcript.length;
-    this.emit(s, 'copilot:analyzing', { on: true });
-
-    const mine = languageName(s.settings.my_language);
-    const theirs = languageName(this.theirLanguageCode(s), mine);
-    const convo = this.transcriptText(s);
-    const recent = this.transcriptText(s, 1500);
-    const background = backgroundBlock(s.bg, recent);
-    const roomNote = s.settings.mode === 'room'
-      ? '\nThis is an in-person conversation recorded by one microphone: lines are labelled VOICE with a guessed speaker, and the guess can be wrong. Use the content to tell who is asking.'
-      : '';
-
-    const panel2 = ai.respond({
-      system: `You assist ME (the user) live during a sales/business meeting. "THEM" is the other side.${roomNote}
+  async runPanel2(s, { force = false } = {}) {
+    if (s.p2Busy || !s.transcript.length) return;
+    if (!force && s.transcript.length === s.p2Count && s.p2Version === s.lineVersion) return;
+    s.p2Busy = true;
+    s.p2StartedAt = Date.now();
+    s.p2Count = s.transcript.length;
+    s.p2Version = s.lineVersion;
+    this.setBusy(s);
+    const { mine, background, roomNote } = this.context(s);
+    try {
+      const out = await ai.respond({
+        system: `You assist ME (the user) live during a sales/business meeting. "THEM" is the other side.${roomNote}
 When you write, call me "you" and the other side "they" (or their name); never write the labels ME or THEM.
 Identify what THEM is asking for or wants. Write in ${mine}.
 - "request": one line summarising their main request right now.
@@ -334,15 +362,39 @@ Identify what THEM is asking for or wants. Write in ${mine}.
 - "open_questions": their questions that have not been answered yet.
 Use empty arrays when nothing applies. If the transcript is too short or unclear, say so in "request" and set uncertain=true.
 ${HONESTY_RULES}`,
-      input: `BACKGROUND:\n${background}\n\nTRANSCRIPT (oldest → newest):\n${convo}`,
-      schema: PANEL2_SCHEMA,
-      schemaName: 'requests',
-      maxOutputTokens: 700,
-      temperature: 0.2,
-    });
+        input: `BACKGROUND:\n${background}\n\nTRANSCRIPT (oldest → newest):\n${this.transcriptText(s, 4000)}`,
+        schema: PANEL2_SCHEMA,
+        schemaName: 'requests',
+        maxOutputTokens: 500,
+        temperature: 0.2,
+      });
+      s.panel2 = { ...out.json, at: new Date().toISOString() };
+      this.emit(s, 'copilot:panel2', s.panel2);
+    } catch (err) {
+      this.emit(s, 'copilot:error', { message: `Panel 2 update failed: ${err.message}` });
+    } finally {
+      s.p2Busy = false;
+      this.setBusy(s);
+      if (s.p2Rerun) {
+        s.p2Rerun = false;
+        this.requestPanel2(s);
+      }
+    }
+  }
 
-    const panel3 = ai.respond({
-      system: `You assist ME (the user) live during a sales/business meeting. "THEM" is the other side.${roomNote}
+  async runPanel3(s, { force = false } = {}) {
+    if (s.status !== 'live' && !force) return;
+    if (!s.transcript.length) return;
+    if (!force && s.transcript.length === s.p3Count) return;
+    if (s.p3Busy) { s.p3Rerun = true; return; }
+    s.p3Busy = true;
+    s.lastAnalysisAt = Date.now();
+    s.p3Count = s.transcript.length;
+    this.setBusy(s);
+    const { mine, theirs, background, roomNote } = this.context(s);
+    try {
+      const out = await ai.respond({
+        system: `You assist ME (the user) live during a sales/business meeting. "THEM" is the other side.${roomNote}
 When you write, call me "you" and the other side "they" (or their name); never write the labels ME or THEM.
 Suggest what I can say right now and the best answer/solution.
 - "replies": 1–3 short replies I can say now (1–2 sentences each). "say" is written in ${theirs} (the language THEM speaks). "meaning" is the ${mine} translation, or "" if ${theirs} is ${mine}.
@@ -351,48 +403,36 @@ Suggest what I can say right now and the best answer/solution.
 - "sources": every web page you relied on (title + url). Empty array if none.
 ${DRAFT_RULES}
 ${HONESTY_RULES}`,
-      input: `BACKGROUND:\n${background}\n\nTRANSCRIPT (oldest → newest):\n${this.transcriptText(s, 6000)}`,
-      schema: PANEL3_SCHEMA,
-      schemaName: 'suggestions',
-      webSearch: true,
-      maxOutputTokens: 1200,
-      temperature: 0.4,
-    });
-
-    const [r2, r3] = await Promise.allSettled([panel2, panel3]);
-    const at = new Date().toISOString();
-
-    if (r2.status === 'fulfilled') {
-      s.panel2 = { ...r2.value.json, at };
-      this.emit(s, 'copilot:panel2', s.panel2);
-    } else {
-      this.emit(s, 'copilot:error', { message: `Panel 2 update failed: ${r2.reason.message}` });
-    }
-
-    if (r3.status === 'fulfilled') {
-      const j = r3.value.json;
+        input: `BACKGROUND:\n${background}\n\nTRANSCRIPT (oldest → newest):\n${this.transcriptText(s, 6000)}`,
+        schema: PANEL3_SCHEMA,
+        schemaName: 'suggestions',
+        webSearch: true,
+        maxOutputTokens: 1200,
+        temperature: 0.4,
+      });
+      const j = out.json;
       s.panel3 = {
         replies: (j.replies || []).slice(0, 3),
         solution: stripCitationMarkup(j.solution),
         uncertain: j.uncertain,
         uncertainty_note: j.uncertainty_note,
-        sources: mergeSources(j.sources, r3.value.sources),
-        searched: r3.value.searched,
-        at,
+        sources: mergeSources(j.sources, out.sources),
+        searched: out.searched,
+        at: new Date().toISOString(),
       };
       await confirmLinks(s.panel3.sources, 4000);
       if (s.panel3.sources.some(src => !src.verified)) s.panel3.uncertain = true;
       s.suggestionsLog.push(s.panel3);
       this.emit(s, 'copilot:panel3', s.panel3);
-    } else {
-      this.emit(s, 'copilot:error', { message: `Panel 3 update failed: ${r3.reason.message}` });
-    }
-
-    s.analyzing = false;
-    this.emit(s, 'copilot:analyzing', { on: false });
-    if (s.rerun) {
-      s.rerun = false;
-      setTimeout(() => this.analyze(s).catch(() => {}), 1000);
+    } catch (err) {
+      this.emit(s, 'copilot:error', { message: `Panel 3 update failed: ${err.message}` });
+    } finally {
+      s.p3Busy = false;
+      this.setBusy(s);
+      if (s.p3Rerun) {
+        s.p3Rerun = false;
+        setTimeout(() => this.runPanel3(s).catch(() => {}), 1000);
+      }
     }
   }
 
@@ -410,6 +450,7 @@ ${HONESTY_RULES}`,
     if (s.status !== 'live') return null;
     s.status = 'stopping';
     clearInterval(s.analysisTimer);
+    clearTimeout(s.p2Timer);
     clearInterval(s.persistTimer);
     this.emit(s, 'copilot:status', { status: 'stopping' });
 

@@ -73,7 +73,7 @@ The three panels:
 | Panel | What it shows |
 |---|---|
 | **1 · Transcript & translation** | Every ~5 s of speech becomes a line labelled **ME** or **THEM**, with a timestamp and a translation into your language. |
-| **2 · What they are asking for** | Their request in one line, the requested actions as a checklist (tick them off as you go), and open questions. Updates every ~20 s, or sooner when they ask a question. |
+| **2 · What they are asking for** | Their request in one line, the requested actions as a checklist (tick them off as you go), and open questions. Updates a few seconds after each new sentence. |
 | **3 · Suggested replies & solutions** | 1–3 short replies you can say now (in their language, with your-language meaning), plus an answer that uses your context, documents and the conversation. When public facts are needed it searches the web and lists the **sources**. |
 
 - **⚠ Uncertain** means the AI is not sure: check before you use it. **Unverified link** means a link was not confirmed by the web search.
