@@ -12,7 +12,7 @@ const store = require('./store');
 const ai = require('./openai');
 const { languageName } = require('./languages');
 const { loadBackground, backgroundBlock } = require('./background');
-const { HONESTY_RULES, SOURCES_SCHEMA, mergeSources, stripCitationMarkup } = require('./prompts');
+const { HONESTY_RULES, DRAFT_RULES, SOURCES_SCHEMA, mergeSources, stripCitationMarkup } = require('./prompts');
 
 const ANALYSIS_INTERVAL_MS = 20000;
 const PERSIST_INTERVAL_MS = 60000;
@@ -346,6 +346,7 @@ Suggest what I can say right now and the best answer/solution.
 - "solution": a concise answer or solution in ${mine} using my context, my documents and the conversation (max ~120 words).
 - Use web search only when a factual question cannot be answered from the background (e.g. public facts, market info, regulations, competitor info). Never search for my own private prices or policies — if they are not in my documents, say they must be confirmed.
 - "sources": every web page you relied on (title + url). Empty array if none.
+${DRAFT_RULES}
 ${HONESTY_RULES}`,
       input: `BACKGROUND:\n${background}\n\nTRANSCRIPT (oldest → newest):\n${this.transcriptText(s, 6000)}`,
       schema: PANEL3_SCHEMA,

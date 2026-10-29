@@ -9,6 +9,13 @@ const HONESTY_RULES = `Honesty rules (mandatory):
 - If you are not sure, set "uncertain" to true and explain briefly in "uncertainty_note" what is unknown and how to confirm it.
 - When you use web search, every researched fact must be supported by a cited source.`;
 
+// Replies are written BY the user TO the other person, and never invent
+// business facts (the AI otherwise tends to promise delivery or prices).
+const DRAFT_RULES = `Rules for replies/drafts:
+- I (the user, usually the seller) am writing to THEM. Answer their questions; never ask them for information they asked me for.
+- Every fact about my business (prices, discounts, stock, delivery areas and times, policies, availability) must come from my context or documents. If it is not there, do not say yes or no: write a bracketed placeholder for me to fill, e.g. [confirm price for 100 units], [confirm delivery to Bangkok].
+- Sign with my name from my context if known, otherwise [Your name].`;
+
 function contactBlock(contact) {
   if (!contact) return '';
   const prefs = contact.preferences || {};
@@ -65,4 +72,4 @@ function stripCitationMarkup(text) {
   return String(text || '').replace(/\s*\(\[[^\]]*\]\([^)]*\)\)/g, '').trim();
 }
 
-module.exports = { HONESTY_RULES, contactBlock, SOURCES_SCHEMA, mergeSources, stripCitationMarkup };
+module.exports = { HONESTY_RULES, DRAFT_RULES, contactBlock, SOURCES_SCHEMA, mergeSources, stripCitationMarkup };

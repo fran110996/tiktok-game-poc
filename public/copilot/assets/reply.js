@@ -11,6 +11,8 @@
     ]);
     await fillLanguages($('#reply-lang'), { auto: true, selected: pref('replyLanguage') || 'auto' });
     $('#reply-lang').options[0].textContent = 'Same as the message';
+    await fillLanguages($('#my-lang'), { selected: pref('myLanguage') || 'en' });
+    $('#my-lang').addEventListener('change', () => pref('myLanguage', $('#my-lang').value));
 
     $('#context').innerHTML += contexts.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
     const lastCtx = pref('lastContext');
@@ -63,7 +65,7 @@
           context_id: $('#context').value || null,
           text,
           note: $('#note').value,
-          my_language: pref('myLanguage') || 'en',
+          my_language: $('#my-lang').value || 'en',
           reply_language: $('#reply-lang').value,
           document_ids: [...document.querySelectorAll('#doc-checks input:checked')].map(i => i.value),
         },
@@ -97,6 +99,7 @@
         context_id: $('#context').value || null,
         contact_id: $('#contact').value || null,
         note: $('#note').value,
+        my_language: $('#my-lang').value || 'en',
         reply_language: $('#reply-lang').value,
         document_ids: [...document.querySelectorAll('#doc-checks input:checked')].map(i => i.value),
       });

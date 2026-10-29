@@ -8,7 +8,7 @@ const store = require('./store');
 const ai = require('./openai');
 const { languageName } = require('./languages');
 const { loadBackground, backgroundBlock } = require('./background');
-const { HONESTY_RULES, SOURCES_SCHEMA, mergeSources, stripCitationMarkup } = require('./prompts');
+const { HONESTY_RULES, DRAFT_RULES, SOURCES_SCHEMA, mergeSources, stripCitationMarkup } = require('./prompts');
 
 const CHANNEL_STYLES = {
   email: 'Email: subject line on the first line as "Subject: ...", greeting, short paragraphs, polite sign-off with the sender name from my context if known.',
@@ -72,6 +72,7 @@ Channel style: ${CHANNEL_STYLES[channel]}
 - Follow my note/instructions if given. Use my context, documents and the contact's preferences.
 - Use web search only when a public fact is needed. Never guess my own prices, stock or policies: if they are missing, write a placeholder like [confirm price] in the draft and set uncertain=true.
 - "sources": every web page you relied on (title + url). Empty array if none.
+${DRAFT_RULES}
 ${HONESTY_RULES}`,
     input: `BACKGROUND:\n${backgroundBlock(bg, (conversation || note).slice(-3000))}\n\nMY NOTE: ${note || '(none)'}\n\n${isNew ? 'NO PREVIOUS CONVERSATION: write a new message based on my note. "summary" = what the message should achieve; "wants" = empty array; "detected_language" = the language you write in.' : `CONVERSATION / EMAIL:\n${conversation}`}`,
     schema: REPLY_SCHEMA,
@@ -163,6 +164,7 @@ async function readScreen(userId, { image, mimeType, ...input }) {
 - "drafts": if a reply makes sense (email, chat, request), 2–3 drafts with a short "label" in ${myLang}, written in ${replyLang || 'the language of the content (or the contact\'s preferred language if set)'}; otherwise an empty array.
 - If text is unreadable or cut off, say so and set uncertain=true. Never guess unreadable numbers. Never invent my own prices or policies: use placeholders like [confirm price].
 - Use web search only when a public fact is needed; list those pages in "sources".
+${DRAFT_RULES}
 ${HONESTY_RULES}`,
     input: [{
       role: 'user',
