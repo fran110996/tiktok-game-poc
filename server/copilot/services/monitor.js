@@ -62,7 +62,7 @@ async function searchGroup(group, { languages, sites, today }) {
   const langNames = languages.map(l => languageName(l, l));
   const out = await ai.respond({
     system: `You are a media monitoring analyst preparing a morning briefing. Today is ${today}.
-Search the public web and news for the most recent coverage (prefer the last 7 days, newest first) about the given terms.
+Search the public web and news for recent coverage about the given terms. Look at the last 7 days first; if you find fewer than 3 relevant items, extend the search to the last 30 days. Newest first.
 ${sites.length ? `Check these sites first: ${sites.join(', ')}. Other public sites are allowed.\n` : ''}Search in: ${langNames.join(', ')}. Write headlines and summaries in ${langNames[0]}.
 Social networks (Facebook, Instagram, TikTok, X) are best-effort only.
 Rules:
@@ -75,7 +75,7 @@ Rules:
     schemaName: 'briefing',
     model: config.replyModel,
     webSearch: true,
-    searchContextSize: 'medium',
+    searchContextSize: 'high',
     maxOutputTokens: 1800,
     temperature: 0.2,
   });
