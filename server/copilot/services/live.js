@@ -9,6 +9,7 @@
 const crypto = require('crypto');
 const config = require('../config');
 const store = require('./store');
+const { confirmLinks } = require('./links');
 const ai = require('./openai');
 const { languageName } = require('./languages');
 const { loadBackground, backgroundBlock } = require('./background');
@@ -379,6 +380,7 @@ ${HONESTY_RULES}`,
         searched: r3.value.searched,
         at,
       };
+      await confirmLinks(s.panel3.sources, 4000);
       if (s.panel3.sources.some(src => !src.verified)) s.panel3.uncertain = true;
       s.suggestionsLog.push(s.panel3);
       this.emit(s, 'copilot:panel3', s.panel3);

@@ -6,6 +6,7 @@
 
 const config = require('../config');
 const store = require('./store');
+const { confirmLinks } = require('./links');
 const ai = require('./openai');
 const { languageName } = require('./languages');
 const { loadBackground, backgroundBlock } = require('./background');
@@ -94,6 +95,7 @@ ${HONESTY_RULES}`,
     uncertainty_note: j.uncertainty_note,
     sources: mergeSources(j.sources, out.sources),
   };
+  await confirmLinks(result.sources);
   if (result.sources.some(s => !s.verified)) result.uncertain = true;
 
   const firstLine = (conversation || `New message: ${note}`).split('\n').find(l => l.trim()) || '';
@@ -197,6 +199,7 @@ ${HONESTY_RULES}`,
     uncertainty_note: j.uncertainty_note,
     sources: mergeSources(j.sources, out.sources),
   };
+  await confirmLinks(result.sources);
   if (result.sources.some(s => !s.verified)) result.uncertain = true;
 
   // The image itself is not stored, only the extracted text and result.

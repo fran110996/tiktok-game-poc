@@ -12,6 +12,7 @@ const ai = require('./openai');
 const { languageName } = require('./languages');
 const { todayStr } = require('./contacts');
 const { cleanUrl, urlKey, verifiedKeys } = require('./prompts');
+const { confirmLinks } = require('./links');
 
 const KINDS = ['brand', 'product', 'keyword', 'site', 'language'];
 const running = new Map(); // userId → Promise
@@ -89,6 +90,7 @@ Rules:
       date: /^\d{4}-\d{2}-\d{2}$/.test(i.date) && i.date <= today ? i.date : 'unknown',
       verified: known.has(urlKey(i.url)),
     }));
+  await confirmLinks(items);
   return {
     label: group.label,
     kind: group.kind,
