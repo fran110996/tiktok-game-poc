@@ -697,13 +697,17 @@
       status('Speaking (browser voice, demo)…');
     }
 
+    let gen = 0; // bumps on stop/panel change: late audio from before is dropped
+
     async function pump() {
       if (busy || paused || muted || !queue.length) return;
       busy = true;
+      const my = gen;
       const text = queue.shift();
       try {
         status('Preparing audio…');
         const url = await fetchAudio(text);
+        if (my !== gen) { URL.revokeObjectURL(url); return; }
         if (last?.url) URL.revokeObjectURL(last.url);
         last = { text, url };
         if (muted) { busy = false; return; }
@@ -711,6 +715,7 @@
         await audio.play();
         status('Speaking…');
       } catch (err) {
+        if (my !== gen) return;
         if (err.demo) return browserSay(text);
         status(`Playback error: ${err.message}`);
         busy = false;
@@ -733,8 +738,10 @@
     }
 
     function stopNow() {
+      gen += 1;
       queue.length = 0;
       audio.pause();
+      audio.removeAttribute('src'); // so play() cannot resume the old clip
       if (synth) synth.cancel();
       busy = false;
     }

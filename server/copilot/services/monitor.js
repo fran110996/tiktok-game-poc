@@ -6,6 +6,7 @@
 // (no cron: the free Render instance sleeps).
 // =============================================================
 
+const config = require('../config');
 const store = require('./store');
 const ai = require('./openai');
 const { languageName } = require('./languages');
@@ -72,6 +73,7 @@ Rules:
     input: `Terms (${group.kind}): ${group.terms.join(', ')}`,
     schema: GROUP_SCHEMA,
     schemaName: 'briefing',
+    model: config.replyModel,
     webSearch: true,
     searchContextSize: 'medium',
     maxOutputTokens: 1800,

@@ -172,7 +172,7 @@ On a contact's page:
    - `COPILOT_USER_EMAIL`, `COPILOT_USER_PASSWORD`, `COPILOT_SESSION_SECRET` (a long random string)
    - `OPENAI_API_KEY` (optional: the key can also be pasted in **Settings**; without any key the copilot runs in demo mode)
    - `SUPABASE_SERVICE_ROLE_KEY`: required so the server can use the private copilot tables. Keep it secret; it is only used on the server.
-   - Optional: `COPILOT_LLM_MODEL` (default `gpt-4.1-mini`), `COPILOT_TRANSCRIBE_MODEL` (default `gpt-4o-mini-transcribe`), `COPILOT_TTS_MODEL` (default `gpt-4o-mini-tts`), `COPILOT_REPLY_MODEL` (drafts in Reply assistant / Read my screen, default `gpt-4.1`), `COPILOT_TTS_VOICE`, `COPILOT_TIMEZONE` (default `Asia/Bangkok`), `COPILOT_WEB_SEARCH_TOOL` (default `web_search`).
+   - Optional: `COPILOT_LLM_MODEL` (default `gpt-4.1-mini`), `COPILOT_TRANSCRIBE_MODEL` (default `gpt-4o-mini-transcribe`), `COPILOT_TTS_MODEL` (default `gpt-4o-mini-tts`), `COPILOT_REPLY_MODEL` (Reply assistant, Read my screen and morning summary, default `gpt-4.1`), `COPILOT_TTS_VOICE`, `COPILOT_TIMEZONE` (default `Asia/Bangkok`), `COPILOT_WEB_SEARCH_TOOL` (default `web_search`).
 3. Run `npm install`. This adds `pdf-parse` and `mammoth` for document text extraction.
 4. If Supabase is not reachable or the service key is missing, the copilot keeps working but saves to `data/copilot-store.json` on the server. A yellow banner warns about this. On the free Render plan that file is lost on every restart or deploy.
 5. **HTTPS is required** for the microphone, screen capture and pop-out (Render provides it).
