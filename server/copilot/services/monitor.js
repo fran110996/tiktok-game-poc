@@ -10,6 +10,7 @@ const store = require('./store');
 const ai = require('./openai');
 const { languageName } = require('./languages');
 const { todayStr } = require('./contacts');
+const { cleanUrl, urlKey, verifiedKeys } = require('./prompts');
 
 const KINDS = ['brand', 'product', 'keyword', 'site', 'language'];
 const running = new Map(); // userId → Promise
@@ -64,8 +65,9 @@ Search the public web and news for the most recent coverage (prefer the last 7 d
 ${sites.length ? `Check these sites first: ${sites.join(', ')}. Other public sites are allowed.\n` : ''}Search in: ${langNames.join(', ')}. Write headlines and summaries in ${langNames[0]}.
 Social networks (Facebook, Instagram, TikTok, X) are best-effort only.
 Rules:
-- Only include items you actually found in the search results, each with its exact URL, the site/source name and its publication date (YYYY-MM-DD, or "unknown" if not shown).
-- Up to 6 items, 1–2 sentence summary each. Skip duplicates and items not really about the terms.
+- Only include news articles, press releases, blog posts or social posts: things that were PUBLISHED, with something new to report. Skip company home pages, shop/product pages and directory listings (they are not news).
+- Only include items you actually found in the search results, each with its exact URL, the site/source name and its publication date (YYYY-MM-DD) exactly as shown on the page. If the page shows no date, use "unknown" — never use today's date as a guess.
+- Up to 6 items, newest first, 1–2 sentence summary each. Skip duplicates and items not really about the terms.
 - If nothing relevant was found, set found=false, items=[] and explain in "note". Never invent articles, dates or links.`,
     input: `Terms (${group.kind}): ${group.terms.join(', ')}`,
     schema: GROUP_SCHEMA,
@@ -76,10 +78,15 @@ Rules:
     temperature: 0.2,
   });
 
-  const known = new Set(out.sources.map(s => s.url));
+  const known = verifiedKeys(out.sources);
   const items = (out.json.items || [])
     .filter(i => /^https?:\/\//i.test(i.url || ''))
-    .map(i => ({ ...i, date: /^\d{4}-\d{2}-\d{2}$/.test(i.date) ? i.date : 'unknown', verified: known.has(i.url) }));
+    .map(i => ({
+      ...i,
+      url: cleanUrl(i.url),
+      date: /^\d{4}-\d{2}-\d{2}$/.test(i.date) && i.date <= today ? i.date : 'unknown',
+      verified: known.has(urlKey(i.url)),
+    }));
   return {
     label: group.label,
     kind: group.kind,

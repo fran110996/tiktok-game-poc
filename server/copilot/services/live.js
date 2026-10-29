@@ -326,6 +326,7 @@ class LiveSessions {
 
     const panel2 = ai.respond({
       system: `You assist ME (the user) live during a sales/business meeting. "THEM" is the other side.${roomNote}
+When you write, call me "you" and the other side "they" (or their name); never write the labels ME or THEM.
 Identify what THEM is asking for or wants. Write in ${mine}.
 - "request": one line summarising their main request right now.
 - "actions": concrete actions they are asking ME to do (checklist items, short).
@@ -341,6 +342,7 @@ ${HONESTY_RULES}`,
 
     const panel3 = ai.respond({
       system: `You assist ME (the user) live during a sales/business meeting. "THEM" is the other side.${roomNote}
+When you write, call me "you" and the other side "they" (or their name); never write the labels ME or THEM.
 Suggest what I can say right now and the best answer/solution.
 - "replies": 1–3 short replies I can say now (1–2 sentences each). "say" is written in ${theirs} (the language THEM speaks). "meaning" is the ${mine} translation, or "" if ${theirs} is ${mine}.
 - "solution": a concise answer or solution in ${mine} using my context, my documents and the conversation (max ~120 words).

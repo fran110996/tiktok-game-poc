@@ -46,26 +46,54 @@ const SOURCES_SCHEMA = {
   },
 };
 
+// Web search adds tracking params (e.g. ?utm_source=openai) to cited links.
+function cleanUrl(url) {
+  try {
+    const u = new URL(url);
+    for (const k of [...u.searchParams.keys()]) if (/^utm_/i.test(k)) u.searchParams.delete(k);
+    u.hash = '';
+    return u.toString();
+  } catch (err) {
+    return url;
+  }
+}
+
+// Comparison key: host without www + path without trailing slash (no query)
+function urlKey(url) {
+  try {
+    const u = new URL(url);
+    return `${u.hostname.replace(/^www\./i, '').toLowerCase()}${u.pathname.replace(/\/+$/, '')}`;
+  } catch (err) {
+    return String(url || '');
+  }
+}
+
+// Keys of every page the search really returned or cited
+function verifiedKeys(apiSources) {
+  return new Set((apiSources || []).map(s => urlKey(s.url)));
+}
+
 // Merge sources the model listed with those the API actually cited.
 // Links that never appeared in the search results are flagged unverified.
 function mergeSources(modelSources, apiSources) {
-  const byUrl = new Map();
-  for (const s of apiSources || []) byUrl.set(s.url, { ...s, verified: true });
+  const byKey = new Map();
+  for (const s of apiSources || []) byKey.set(urlKey(s.url), s);
   const out = [];
   const seen = new Set();
   for (const s of modelSources || []) {
     if (!s || !/^https?:\/\//i.test(s.url || '')) continue;
-    const key = s.url;
+    const key = urlKey(s.url);
     if (seen.has(key)) continue;
     seen.add(key);
-    const api = byUrl.get(key);
-    out.push({ title: s.title || api?.title || key, url: key, verified: Boolean(api) });
+    const api = byKey.get(key);
+    out.push({ title: s.title || api?.title || s.url, url: cleanUrl(s.url), verified: Boolean(api) });
   }
   // Cited-in-text sources the model forgot to list
   for (const s of apiSources || []) {
-    if (s.cited && !seen.has(s.url)) {
-      seen.add(s.url);
-      out.push({ title: s.title, url: s.url, verified: true });
+    const key = urlKey(s.url);
+    if (s.cited && !seen.has(key)) {
+      seen.add(key);
+      out.push({ title: s.title, url: cleanUrl(s.url), verified: true });
     }
   }
   return out;
@@ -76,4 +104,4 @@ function stripCitationMarkup(text) {
   return String(text || '').replace(/\s*\(\[[^\]]*\]\([^)]*\)\)/g, '').trim();
 }
 
-module.exports = { HONESTY_RULES, DRAFT_RULES, contactBlock, SOURCES_SCHEMA, mergeSources, stripCitationMarkup };
+module.exports = { HONESTY_RULES, DRAFT_RULES, contactBlock, SOURCES_SCHEMA, mergeSources, stripCitationMarkup, cleanUrl, urlKey, verifiedKeys };

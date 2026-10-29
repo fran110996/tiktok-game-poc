@@ -721,6 +721,24 @@
     audio.addEventListener('ended', () => { busy = false; status(queue.length ? '' : 'Idle'); pump(); });
     audio.addEventListener('pause', () => { if (!audio.ended && paused) status('Paused'); });
 
+    // What the chosen panel says right now (read on select / ▶)
+    function currentText(n) {
+      if (n === 1) {
+        const l = [...state.lines].reverse().find(x => x.source !== 'me' && x.speaker !== 'me');
+        return l ? (l.translation || l.text) : '';
+      }
+      if (n === 2) return R.panel2Speech(state.panel2, new Set());
+      if (n === 3) return R.panel3Speech(state.panel3, new Set());
+      return '';
+    }
+
+    function stopNow() {
+      queue.length = 0;
+      audio.pause();
+      if (synth) synth.cancel();
+      busy = false;
+    }
+
     function enqueue(text) {
       if (!panel || muted || !text) return;
       queue.push(text);
@@ -734,12 +752,13 @@
       setPanel(n) {
         panel = Number(n);
         pref('speakPanel', panel);
-        queue.length = 0;
-        // Do not read old content when switching panel — only new content from now on
+        stopNow();
+        // Read what the panel shows now, then only new content
         if (panel === 2) R.panel2Speech(state.panel2, spoken2);
         if (panel === 3) R.panel3Speech(state.panel3, spoken3);
         highlight();
         status(panel ? 'Waiting for new content…' : 'Off');
+        if (panel) enqueue(currentText(panel));
         state.targets.forEach(t => t.render());
       },
       onLine(line) {
@@ -774,7 +793,9 @@
         this.unlock();
         paused = false;
         if (synth && synth.paused) { synth.resume(); status('Speaking…'); return; }
-        if (audio.src && audio.paused && !audio.ended && busy) { audio.play(); status('Speaking…'); } else pump();
+        if (audio.src && audio.paused && !audio.ended && busy) { audio.play(); status('Speaking…'); return; }
+        // Nothing playing or queued: read the panel's current content
+        if (!busy && !queue.length) enqueue(currentText(panel)); else pump();
       },
       pause() {
         paused = true;

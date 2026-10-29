@@ -79,7 +79,7 @@ const CopilotRender = (() => {
     const fresh = (p.replies || []).filter(r => !spoken.has(r.say));
     fresh.forEach(r => spoken.add(r.say));
     if (!fresh.length) return '';
-    const text = fresh.map((r, i) => `Option ${i + 1}: ${r.say}`).join('. ');
+    const text = fresh.map((r, i) => `Option ${i + 1}: ${r.say.trim().replace(/[.!?。]+$/, '')}`).join('. ');
     return p.uncertain ? `${text}. Careful, this is uncertain.` : text;
   }
 
