@@ -51,7 +51,7 @@ function messagesFromInput(input) {
 }
 
 // Same shape as each real structured answer, keyed by schema name.
-function respond({ schemaName, input, schema }) {
+function respond({ schemaName, input, schema, system = '' }) {
   const text = typeof input === 'string' ? input : JSON.stringify(input);
   let json;
   switch (schemaName) {
@@ -62,10 +62,22 @@ function respond({ schemaName, input, schema }) {
       break;
     }
     case 'requests':
-      json = {
+      json = /_tr", "actions_tr", "open_questions_tr": exactly/.test(system) ? {
+        request: 'They want wholesale pricing for 100 pieces, a catalogue and quotation via LINE, the delivery time and samples.',
+        actions: ['Send the catalogue via LINE', 'Send a quotation for 100 pieces'],
+        open_questions: ['Wholesale price for 100 pieces?'],
+        request_tr: '(demo translation) ลูกค้าต้องการราคาส่งสำหรับ 100 ชิ้น แคตตาล็อกและใบเสนอราคาทาง LINE',
+        actions_tr: ['ส่งแคตตาล็อกทาง LINE', 'ส่งใบเสนอราคาสำหรับ 100 ชิ้น'],
+        open_questions_tr: ['ราคาส่งสำหรับ 100 ชิ้น?'],
+        uncertain: true,
+        uncertainty_note: 'Demo mode: example answer.',
+      } : {
         request: 'They want wholesale pricing for 100 pieces, a catalogue and quotation via LINE, the delivery time and samples.',
         actions: ['Send the catalogue via LINE', 'Send a quotation for 100 pieces', 'Confirm the delivery time', 'Offer samples'],
         open_questions: ['Wholesale price for 100 pieces?', 'How many days for delivery?', 'Are samples available?'],
+        request_tr: '',
+        actions_tr: [],
+        open_questions_tr: [],
         uncertain: true,
         uncertainty_note: 'Demo mode: example answer. The real AI would check your documents for the price and delivery time.',
       };
@@ -78,6 +90,7 @@ function respond({ schemaName, input, schema }) {
           { say: 'มีตัวอย่างให้ลองค่ะ จะส่งไปพร้อมใบเสนอราคานะคะ', meaning: "We have samples — I'll send them with the quotation." },
         ],
         solution: '(Demo answer) Confirm interest, promise the catalogue and a quotation for 100 pieces via LINE today, and check the delivery time before committing. Offer samples to speed up the decision.',
+        solution_tr: '',
         uncertain: true,
         uncertainty_note: 'Demo mode: no real AI or web search was used. Prices and delivery times must come from your documents.',
         sources: [],

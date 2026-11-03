@@ -62,7 +62,10 @@ Every copilot page and API route requires this login.
 1. Pick a **context profile**. Its text appears below the selector, and you can edit it just for this session.
 2. Tick the **documents** to use.
 3. Optionally pick a **contact**. Their tags, preferences and notes are used in the suggestions.
-4. Choose **my language** (default English) and **their language** (auto-detect by default).
+4. Choose the **languages for each box**. Each box has its own pair, and you can change it during the session from the top of the box:
+   - **Box 1:** the language being spoken (or Auto-detect) → the language the transcript is translated into.
+   - **Box 2:** the language that explains what they ask → an optional second language with the same content.
+   - **Box 3:** the language you reply in (default: the language they speak) → a translation so you understand exactly what you will say.
 5. Choose the audio sources:
    - **Microphone = Me.**
    - **Screen / tab with audio = Them.** Untick it for in-person meetings (microphone only).

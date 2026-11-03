@@ -77,7 +77,7 @@ function parseResponse(data) {
 // Returns { json?, text, sources, searched }
 // ---------------------------------------------------------------
 async function respond({ system, input, schema, schemaName = 'result', webSearch = false, maxOutputTokens = 1500, temperature = 0.4, searchContextSize = 'medium', model }) {
-  if (keys.isDemo()) return demo.respond({ schemaName, input, schema });
+  if (keys.isDemo()) return demo.respond({ schemaName, input, schema, system });
   const body = {
     model: model || config.llmModel,
     instructions: system,

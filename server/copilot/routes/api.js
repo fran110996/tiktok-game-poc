@@ -176,6 +176,13 @@ router.post('/sessions/:id/audio', (req, res, next) => {
   return { ok: true, line };
 }));
 
+// Change the language pair of any box during a live session
+router.put('/sessions/:id/languages', handle(async (req) => {
+  const s = live.get(req.params.id, uid(req));
+  if (!s) throw httpError(404, 'Session is not live');
+  return { ok: true, languages: await live.setLanguages(s, req.body?.languages || {}) };
+}));
+
 // Correct who said a transcript line (live or saved session)
 router.put('/sessions/:id/lines/:lineId', handle(async (req) => {
   const who = req.body?.speaker;

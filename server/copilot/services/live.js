@@ -11,7 +11,7 @@ const config = require('../config');
 const store = require('./store');
 const { confirmLinks } = require('./links');
 const ai = require('./openai');
-const { languageName } = require('./languages');
+const { languageName, LANGUAGES } = require('./languages');
 const { loadBackground, backgroundBlock } = require('./background');
 const { HONESTY_RULES, DRAFT_RULES, SOURCES_SCHEMA, mergeSources, stripCitationMarkup } = require('./prompts');
 
@@ -41,10 +41,14 @@ const PANEL2_SCHEMA = {
     request: { type: 'string' },
     actions: { type: 'array', items: { type: 'string' } },
     open_questions: { type: 'array', items: { type: 'string' } },
+    // Same content in the box's translation language ("" / [] when none)
+    request_tr: { type: 'string' },
+    actions_tr: { type: 'array', items: { type: 'string' } },
+    open_questions_tr: { type: 'array', items: { type: 'string' } },
     uncertain: { type: 'boolean' },
     uncertainty_note: { type: 'string' },
   },
-  required: ['request', 'actions', 'open_questions', 'uncertain', 'uncertainty_note'],
+  required: ['request', 'actions', 'open_questions', 'request_tr', 'actions_tr', 'open_questions_tr', 'uncertain', 'uncertainty_note'],
 };
 
 const PANEL3_SCHEMA = {
@@ -61,11 +65,12 @@ const PANEL3_SCHEMA = {
       },
     },
     solution: { type: 'string' },
+    solution_tr: { type: 'string' },
     uncertain: { type: 'boolean' },
     uncertainty_note: { type: 'string' },
     sources: SOURCES_SCHEMA,
   },
-  required: ['replies', 'solution', 'uncertain', 'uncertainty_note', 'sources'],
+  required: ['replies', 'solution', 'solution_tr', 'uncertain', 'uncertainty_note', 'sources'],
 };
 
 const SUMMARY_SCHEMA = {
@@ -99,6 +104,23 @@ const TRANSLATE_SCHEMA = {
   },
   required: ['language', 'translation'],
 };
+
+// Language pair per box, chosen by the user:
+//   t_spoken / t_target  — box 1: language spoken (hint) / translate into
+//   p2_main / p2_tr      — box 2: explain in / also show in
+//   p3_main / p3_tr      — box 3: reply in ('auto' = the language they speak) / meaning in
+// 'auto' and 'none' are allowed where it makes sense.
+function normalizeLangs(l = {}, { my = 'en', their = 'auto' } = {}) {
+  const pick = (v, extra) => (extra.includes(v) || LANGUAGES[v] ? v : null);
+  return {
+    t_spoken: pick(l.t_spoken, ['auto']) || (LANGUAGES[their] ? their : 'auto'),
+    t_target: pick(l.t_target, ['none']) || my,
+    p2_main: pick(l.p2_main, []) || my,
+    p2_tr: pick(l.p2_tr, ['none']) || 'none',
+    p3_main: pick(l.p3_main, ['auto']) || 'auto',
+    p3_tr: pick(l.p3_tr, ['none']) || my,
+  };
+}
 
 class LiveSessions {
   constructor() {
@@ -138,8 +160,7 @@ class LiveSessions {
   // ---------------------------------------------------------------
   async start(userId, input) {
     const settings = {
-      my_language: input.my_language || 'en',
-      their_language: input.their_language || 'auto',
+      languages: normalizeLangs(input.languages, { my: input.my_language || 'en', their: input.their_language || 'auto' }),
       context_id: input.context_id || null,
       context_text: (input.context_text || '').slice(0, 5000),
       document_ids: Array.isArray(input.document_ids) ? input.document_ids.slice(0, 20) : [],
@@ -149,6 +170,9 @@ class LiveSessions {
       // both people (in-person conversation, phone); speakers are guessed.
       mode: input.mode === 'room' ? 'room' : 'meeting',
     };
+    // Older fields kept in step for history and other features
+    settings.my_language = settings.languages.p2_main;
+    settings.their_language = settings.languages.t_spoken;
     const bg = await loadBackground(userId, settings);
     const startedAt = new Date().toISOString();
     const title = (input.title || '').trim()
@@ -200,10 +224,10 @@ class LiveSessions {
     s.lastActivity = Date.now();
     const isRoom = source === 'room';
     const isMe = source === 'me';
-    // Room audio mixes both languages, so let the model detect it.
-    const lang = isRoom ? undefined
-      : isMe ? s.settings.my_language
-        : (s.settings.their_language !== 'auto' ? s.settings.their_language : undefined);
+    // The chosen spoken language is a hint for their speech (and the room);
+    // my own speech is auto-detected.
+    const L = this.langs(s);
+    const lang = isMe || L.t_spoken === 'auto' ? undefined : L.t_spoken;
     const prevText = s.transcript.filter(l => l.source === source).slice(-3).map(l => l.text).join(' ');
 
     let text;
@@ -227,28 +251,7 @@ class LiveSessions {
     this.insertLine(s, line);
     this.emit(s, 'copilot:line', line);
 
-    // Translate to my language (skip if already in it); in room mode also
-    // guess who is speaking from my context and the recent conversation.
-    try {
-      const target = languageName(s.settings.my_language);
-      const roomHint = isRoom
-        ? `\nThe text comes from ONE microphone that hears both ME (the user) and THEM (the other person). Guess "speaker": "me" or "them" from the content, the conversation so far and what you know about me; use "unknown" if unclear.\nAbout me: ${(s.bg.contextText || '(no context)').slice(0, 600)}\nRecent conversation:\n${this.transcriptText(s, 1200)}`
-        : '';
-      const out = await ai.respond({
-        system: `You are a professional interpreter. Detect the language of the text and translate it into ${target}. Keep the meaning, names and numbers exactly. If the text is already in ${target}, return an empty translation.${roomHint} Output only JSON.`,
-        input: text,
-        schema: isRoom ? TRANSLATE_ROOM_SCHEMA : TRANSLATE_SCHEMA,
-        schemaName: 'translation',
-        maxOutputTokens: 600,
-        temperature: 0,
-      });
-      line.language = (out.json.language || line.language || '').slice(0, 5).toLowerCase() || null;
-      line.translation = (out.json.translation || '').trim();
-      if (isRoom) line.speaker = ['me', 'them'].includes(out.json.speaker) ? out.json.speaker : 'unknown';
-      if (!isMe && line.speaker !== 'me' && line.language) s.detectedTheirLanguage = line.language;
-    } catch (err) {
-      // Transcript line stays without translation
-    }
+    await this.translateLine(s, line);
     line.translated = true;
     this.emit(s, 'copilot:line', line);
 
@@ -257,6 +260,71 @@ class LiveSessions {
       this.runPanel3(s).catch(() => {});
     }
     return line;
+  }
+
+  // Translate a line into box 1's target language (skipped if it is already
+  // in it, or if the target is 'none'); in-person lines also get a guess of
+  // who is speaking.
+  async translateLine(s, line) {
+    const L = this.langs(s);
+    const isRoom = line.source === 'room';
+    const noTarget = L.t_target === 'none';
+    if (noTarget && !isRoom) {
+      line.translation = '';
+      return;
+    }
+    try {
+      const target = noTarget ? null : languageName(L.t_target);
+      const roomHint = isRoom
+        ? `\nThe text comes from ONE microphone that hears both ME (the user) and THEM (the other person). Guess "speaker": "me" or "them" from the content, the conversation so far and what you know about me; use "unknown" if unclear.\nAbout me: ${(s.bg.contextText || '(no context)').slice(0, 600)}\nRecent conversation:\n${this.transcriptText(s, 1200)}`
+        : '';
+      const out = await ai.respond({
+        system: target
+          ? `You are a professional interpreter. Detect the language of the text and translate it into ${target}. Keep the meaning, names and numbers exactly. If the text is already in ${target}, return an empty translation.${roomHint} Output only JSON.`
+          : `Detect the language of the text. Return an empty translation.${roomHint} Output only JSON.`,
+        input: line.text,
+        schema: isRoom ? TRANSLATE_ROOM_SCHEMA : TRANSLATE_SCHEMA,
+        schemaName: 'translation',
+        maxOutputTokens: 600,
+        temperature: 0,
+      });
+      line.language = (out.json.language || line.language || '').slice(0, 5).toLowerCase() || null;
+      line.translation = noTarget ? '' : (out.json.translation || '').trim();
+      if (isRoom && !line.corrected) line.speaker = ['me', 'them'].includes(out.json.speaker) ? out.json.speaker : 'unknown';
+      if (line.source !== 'me' && line.speaker !== 'me' && line.language) s.detectedTheirLanguage = line.language;
+    } catch (err) {
+      // Transcript line stays without translation
+    }
+  }
+
+  langs(s) {
+    if (!s.settings.languages) s.settings.languages = normalizeLangs({}, { my: s.settings.my_language, their: s.settings.their_language });
+    return s.settings.languages;
+  }
+
+  // Change one or more language choices during a live session.
+  async setLanguages(s, input = {}) {
+    const before = { ...this.langs(s) };
+    const next = normalizeLangs({ ...before, ...input });
+    s.settings.languages = next;
+    s.settings.my_language = next.p2_main;
+    s.settings.their_language = next.t_spoken;
+    this.emit(s, 'copilot:langs', next);
+    store.update('copilot_sessions', s.userId, s.id, { settings: s.settings }).catch(() => {});
+
+    if (before.t_target !== next.t_target) {
+      // Re-translate the last lines so box 1 shows the new language right away
+      const recent = s.transcript.slice(-8);
+      Promise.all(recent.map(async (l) => {
+        await this.translateLine(s, l);
+        this.emit(s, 'copilot:line', l);
+      })).catch(() => {});
+    }
+    if (before.p2_main !== next.p2_main || before.p2_tr !== next.p2_tr) this.requestPanel2(s, { now: true, force: true });
+    if (before.p3_main !== next.p3_main || before.p3_tr !== next.p3_tr || (before.t_spoken !== next.t_spoken && next.p3_main === 'auto')) {
+      this.runPanel3(s, { force: true }).catch(() => {});
+    }
+    return next;
   }
 
   // Manual correction of a speaker label. Meeting lines switch source
@@ -302,9 +370,11 @@ class LiveSessions {
     return out.trim();
   }
 
+  // The language the other person speaks (chosen, else detected)
   theirLanguageCode(s) {
-    if (s.settings.their_language && s.settings.their_language !== 'auto') return s.settings.their_language;
-    return s.detectedTheirLanguage || s.settings.my_language;
+    const L = this.langs(s);
+    if (L.t_spoken !== 'auto') return L.t_spoken;
+    return s.detectedTheirLanguage || L.p2_main;
   }
 
   // ---------------------------------------------------------------
@@ -318,10 +388,15 @@ class LiveSessions {
   }
 
   context(s) {
-    const mine = languageName(s.settings.my_language);
+    const L = this.langs(s);
+    const mine = languageName(L.p2_main);
+    const replyCode = L.p3_main === 'auto' ? this.theirLanguageCode(s) : L.p3_main;
+    const trOf = (code, main) => (code === 'none' || code === main ? null : languageName(code));
     return {
       mine,
-      theirs: languageName(this.theirLanguageCode(s), mine),
+      p2Tr: trOf(L.p2_tr, L.p2_main),
+      replyLang: languageName(replyCode, mine),
+      p3Tr: trOf(L.p3_tr, replyCode),
       background: backgroundBlock(s.bg, this.transcriptText(s, 1500)),
       roomNote: s.settings.mode === 'room'
         ? '\nThis is an in-person conversation recorded by one microphone: lines are labelled VOICE with a guessed speaker, and the guess can be wrong. Use the content to tell who is asking.'
@@ -351,7 +426,7 @@ class LiveSessions {
     s.p2Count = s.transcript.length;
     s.p2Version = s.lineVersion;
     this.setBusy(s);
-    const { mine, background, roomNote } = this.context(s);
+    const { mine, p2Tr, background, roomNote } = this.context(s);
     try {
       const out = await ai.respond({
         system: `You assist ME (the user) live during a sales/business meeting. "THEM" is the other side.${roomNote}
@@ -361,6 +436,9 @@ Identify what THEM is asking for or wants. Write in ${mine}.
 - "actions": concrete actions they are asking ME to do (checklist items, short).
 - "open_questions": their questions that have not been answered yet.
 Use empty arrays when nothing applies. If the transcript is too short or unclear, say so in "request" and set uncertain=true.
+${p2Tr
+    ? `- "request_tr", "actions_tr", "open_questions_tr": exactly the same content translated into ${p2Tr}: same meaning, same number of items, same order.`
+    : '- "request_tr": "" and "actions_tr", "open_questions_tr": [] (no translation wanted).'}
 ${HONESTY_RULES}`,
         input: `BACKGROUND:\n${background}\n\nTRANSCRIPT (oldest → newest):\n${this.transcriptText(s, 4000)}`,
         schema: PANEL2_SCHEMA,
@@ -391,14 +469,14 @@ ${HONESTY_RULES}`,
     s.lastAnalysisAt = Date.now();
     s.p3Count = s.transcript.length;
     this.setBusy(s);
-    const { mine, theirs, background, roomNote } = this.context(s);
+    const { replyLang, p3Tr, background, roomNote } = this.context(s);
     try {
       const out = await ai.respond({
         system: `You assist ME (the user) live during a sales/business meeting. "THEM" is the other side.${roomNote}
 When you write, call me "you" and the other side "they" (or their name); never write the labels ME or THEM.
 Suggest what I can say right now and the best answer/solution.
-- "replies": 1–3 short replies I can say now (1–2 sentences each). "say" is written in ${theirs} (the language THEM speaks). "meaning" is the ${mine} translation, or "" if ${theirs} is ${mine}.
-- "solution": a concise answer or solution in ${mine} using my context, my documents and the conversation (max ~120 words).
+- "replies": 1–3 short replies I can say now (1–2 sentences each). "say" is written in ${replyLang}. ${p3Tr ? `"meaning" is the exact ${p3Tr} translation of "say" (same meaning, nothing added).` : '"meaning" is "".'}
+- "solution": a concise answer or solution in ${replyLang} using my context, my documents and the conversation (max ~120 words). ${p3Tr ? `"solution_tr": the same solution translated into ${p3Tr}.` : '"solution_tr": "".'}
 - Use web search only when a factual question cannot be answered from the background (e.g. public facts, market info, regulations, competitor info). Never search for my own private prices or policies — if they are not in my documents, say they must be confirmed.
 - "sources": every web page you relied on (title + url). Empty array if none.
 ${DRAFT_RULES}
@@ -414,6 +492,7 @@ ${HONESTY_RULES}`,
       s.panel3 = {
         replies: (j.replies || []).slice(0, 3),
         solution: stripCitationMarkup(j.solution),
+        solution_tr: stripCitationMarkup(j.solution_tr || ''),
         uncertain: j.uncertain,
         uncertainty_note: j.uncertainty_note,
         sources: mergeSources(j.sources, out.sources),
@@ -458,7 +537,7 @@ ${HONESTY_RULES}`,
     if (s.transcript.length) {
       try {
         const out = await ai.respond({
-          system: `Summarise this meeting for ME (the user) in ${languageName(s.settings.my_language)}. "summary": 3–5 sentences. "key_points": what was discussed/agreed. "next_steps": follow-ups for me. ${HONESTY_RULES}`,
+          system: `Summarise this meeting for ME (the user) in ${languageName(this.langs(s).p2_main)}. "summary": 3–5 sentences. "key_points": what was discussed/agreed. "next_steps": follow-ups for me. ${HONESTY_RULES}`,
           input: this.transcriptText(s, 20000),
           schema: SUMMARY_SCHEMA,
           schemaName: 'summary',

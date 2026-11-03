@@ -31,18 +31,25 @@ const CopilotRender = (() => {
     return list.map(lineHtml).join('');
   }
 
+  // Second-language line under a main one (boxes 2 and 3)
+  function trHtml(text) {
+    return text ? `<div class="tr-line">${esc(text)}</div>` : '';
+  }
+
   // done: Set of action texts ticked by the user
   function panel2Html(p, done = new Set()) {
     if (!p) return '<div class="empty">Updates a few seconds after each new sentence.</div>';
     const actions = p.actions || [];
     const qs = p.open_questions || [];
+    const aTr = p.actions_tr || [];
+    const qTr = p.open_questions_tr || [];
     return `
       <div class="row" style="margin-bottom:6px">${uncertainTag(p)}</div>
-      <div class="req-line">${esc(p.request || '—')}</div>
+      <div class="req-line">${esc(p.request || '—')}${trHtml(p.request_tr)}</div>
       <div class="section-label">Requested actions</div>
-      ${actions.length ? `<ul class="checklist">${actions.map(a => `<li class="${done.has(a) ? 'done' : ''}"><input type="checkbox" data-action="${esc(a)}" ${done.has(a) ? 'checked' : ''} /><span>${esc(a)}</span></li>`).join('')}</ul>` : '<div class="muted small">None yet.</div>'}
+      ${actions.length ? `<ul class="checklist">${actions.map((a, i) => `<li class="${done.has(a) ? 'done' : ''}"><input type="checkbox" data-action="${esc(a)}" ${done.has(a) ? 'checked' : ''} /><span>${esc(a)}${trHtml(aTr[i])}</span></li>`).join('')}</ul>` : '<div class="muted small">None yet.</div>'}
       <div class="section-label">Open questions</div>
-      ${qs.length ? `<ul class="qlist">${qs.map(q => `<li>${esc(q)}</li>`).join('')}</ul>` : '<div class="muted small">None.</div>'}
+      ${qs.length ? `<ul class="qlist">${qs.map((q, i) => `<li>${esc(q)}${trHtml(qTr[i])}</li>`).join('')}</ul>` : '<div class="muted small">None.</div>'}
       ${uncertainNote(p)}`;
   }
 
@@ -55,10 +62,11 @@ const CopilotRender = (() => {
       ${replies.length ? replies.map((r, i) => `
         <div class="reply-card">
           <div class="row between"><div class="reply-say">${esc(r.say)}</div><button class="btn-ghost btn-sm" data-copy="${esc(r.say)}">Copy</button></div>
-          ${r.meaning ? `<div class="reply-meaning">${esc(r.meaning)}</div>` : ''}
+          ${trHtml(r.meaning)}
         </div>`).join('') : '<div class="muted small">No reply needed right now.</div>'}
       <div class="section-label">Answer / solution</div>
       <div class="ai-block">${esc(p.solution || '—')}</div>
+      ${trHtml(p.solution_tr)}
       ${uncertainNote(p)}
       ${sourcesHtml(p.sources)}`;
   }

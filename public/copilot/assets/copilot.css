@@ -380,3 +380,15 @@ table.simple th { color: var(--muted); font-weight: 600; font-size: 0.78rem; tex
 /* Speaker labels can be corrected with a tap */
 .who[data-fix] { cursor: pointer; }
 .who[data-fix]:hover { outline: 1px solid currentColor; }
+
+/* Second language under the main text (boxes 2 and 3) */
+.tr-line { font-size: 0.86rem; color: var(--green); font-weight: 400; margin-top: 2px; }
+.reply-card .tr-line { margin-top: 4px; }
+
+/* Language pair selectors (setup + top of each live box) */
+.lang-pair { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; padding: 6px 14px 8px; border-bottom: 1px solid var(--border); font-size: 0.75rem; color: var(--muted); }
+.lang-pair select { width: auto; max-width: 46%; padding: 3px 6px; font-size: 0.78rem; background: var(--bg); }
+.lang-setup { display: grid; grid-template-columns: auto 1fr 1fr; gap: 6px 8px; align-items: center; }
+.lang-setup .box-name { font-size: 0.82rem; color: var(--text); font-weight: 600; }
+.lang-setup .col-head { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; }
+@media (max-width: 760px) { .lang-setup { grid-template-columns: 1fr 1fr; } .lang-setup .box-name { grid-column: 1 / -1; margin-top: 4px; } .lang-setup .col-spacer { display: none; } }

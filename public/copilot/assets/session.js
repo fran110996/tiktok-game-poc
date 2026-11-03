@@ -34,8 +34,7 @@
   // =============================================================
   async function loadSetup() {
     setupMode();
-    await fillLanguages($('#my-lang'), { selected: pref('myLanguage') || 'en' });
-    await fillLanguages($('#their-lang'), { auto: true, selected: pref('theirLanguage') || 'auto' });
+    await fillLangSelects('[data-lang]', 'lang', savedLangs());
 
     const [contexts, docs, contacts] = await Promise.all([
       api('/contexts').catch(() => []),
@@ -91,6 +90,63 @@
     $('#room-tip').classList.toggle('hidden', !room);
     pref('mode', currentMode());
   }
+
+  // =============================================================
+  // LANGUAGE PAIRS (one per box; chosen at setup, changeable live)
+  // =============================================================
+  const LANG_EXTRA = {
+    t_spoken: ['auto', 'Auto-detect'],
+    t_target: ['none', 'No translation'],
+    p2_main: null,
+    p2_tr: ['none', 'No translation'],
+    p3_main: ['auto', 'Their language'],
+    p3_tr: ['none', 'No translation'],
+  };
+
+  function savedLangs() {
+    const my = pref('myLanguage') || 'en';
+    return { t_spoken: 'auto', t_target: my, p2_main: my, p2_tr: 'none', p3_main: 'auto', p3_tr: my, ...(pref('langs') || {}) };
+  }
+
+  async function fillLangSelects(selector, attr, values) {
+    const m = await Copilot.meta();
+    document.querySelectorAll(selector).forEach(sel => {
+      const key = sel.dataset[attr === 'lang' ? 'lang' : 'liveLang'];
+      const extra = LANG_EXTRA[key];
+      sel.innerHTML = (extra ? `<option value="${extra[0]}">${esc(extra[1])}</option>` : '')
+        + Object.entries(m.languages).map(([code, name]) => `<option value="${code}">${esc(name)}</option>`).join('');
+      if (values && values[key]) sel.value = values[key];
+    });
+  }
+
+  function readLangSelects(selector, attr) {
+    const out = {};
+    document.querySelectorAll(selector).forEach(sel => { out[sel.dataset[attr === 'lang' ? 'lang' : 'liveLang']] = sel.value; });
+    return out;
+  }
+
+  function setLiveLangs(values) {
+    document.querySelectorAll('[data-live-lang]').forEach(sel => { if (values[sel.dataset.liveLang]) sel.value = values[sel.dataset.liveLang]; });
+  }
+
+  async function initLiveLangs() {
+    const values = state.session?.settings?.languages || savedLangs();
+    await fillLangSelects('[data-live-lang]', 'live', values);
+  }
+
+  // Changing a box's language during the session: that box updates at once
+  document.addEventListener('change', async (e) => {
+    const sel = e.target.closest('[data-live-lang]');
+    if (!sel || !state.session) return;
+    try {
+      const res = await api(`/sessions/${state.session.id}/languages`, { method: 'PUT', body: { languages: { [sel.dataset.liveLang]: sel.value } } });
+      state.session.settings = { ...(state.session.settings || {}), languages: res.languages };
+      pref('langs', res.languages);
+      toast('Language updated — the box refreshes in a few seconds');
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+  });
 
   // Microphones (labels are only visible after mic permission was granted once)
   async function listMics() {
@@ -304,6 +360,7 @@
   }
 
   function showLive() {
+    initLiveLangs().catch(() => {});
     $('#setup-view').classList.add('hidden');
     $('#live-view').classList.remove('hidden');
     $('#live-title').textContent = state.session.title;
@@ -397,6 +454,10 @@
     });
     socket.on('copilot:panel2', (p) => { state.panel2 = p; renderPanel2(); Speaker.onPanel(2, p); });
     socket.on('copilot:panel3', (p) => { state.panel3 = p; renderPanel3(); Speaker.onPanel(3, p); });
+    socket.on('copilot:langs', (langs) => {
+      state.session.settings = { ...(state.session.settings || {}), languages: langs };
+      setLiveLangs(langs);
+    });
     socket.on('copilot:analyzing', ({ on }) => { $('#analyzing').style.display = on ? '' : 'none'; });
     socket.on('copilot:error', ({ message }) => notice(message, 'error'));
   }
@@ -421,8 +482,9 @@
     btn.textContent = 'Starting…';
     const docIds = [...document.querySelectorAll('#doc-checks input:checked')].map(i => i.value);
     pref('lastDocs', docIds);
-    pref('myLanguage', $('#my-lang').value);
-    pref('theirLanguage', $('#their-lang').value);
+    const languages = readLangSelects('[data-lang]', 'lang');
+    pref('langs', languages);
+    pref('myLanguage', languages.p2_main);
 
     // Ask for devices first (user gesture), then create the session
     state.startedAt = Date.now();
@@ -443,8 +505,9 @@
           context_text: $('#context-text').value,
           document_ids: docIds,
           contact_id: $('#contact-select').value || null,
-          my_language: $('#my-lang').value,
-          their_language: $('#their-lang').value,
+          languages,
+          my_language: languages.p2_main,
+          their_language: languages.t_spoken,
           sources: { mic, screen },
           mode,
         },
