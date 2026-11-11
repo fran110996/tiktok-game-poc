@@ -20,6 +20,8 @@ const PANEL2_DEBOUNCE_MS = 1500;     // panel 2: shortly after each new line
 const PANEL2_MIN_GAP_MS = 4000;
 const PERSIST_INTERVAL_MS = 60000;
 const IDLE_STOP_MS = 30 * 60 * 1000; // tab closed without Stop → auto-stop after 30 min of no audio
+const MAX_SCREENS = 30;          // photos/screens kept per live session
+const SCREEN_IMAGES_KEPT = 3;    // only the newest photos keep their image (in memory, never saved)
 
 // Phrases transcription models tend to produce on silence/noise.
 const SILENCE_HALLUCINATIONS = [
@@ -153,8 +155,67 @@ class LiveSessions {
       transcript: s.transcript,
       panel2: s.panel2,
       panel3: s.panel3,
+      screens: this.screensForClient(s),
       status: s.status,
     };
+  }
+
+  // Photos / screens shared into the session (newest images only)
+  screensForClient(s) {
+    const list = s.screens || [];
+    return list.map((sc, i) => (i >= list.length - SCREEN_IMAGES_KEPT ? sc : { ...sc, image: null }));
+  }
+
+  // Text-only copy for saving (images are never stored)
+  screensForStore(s) {
+    return (s.screens || []).filter(sc => sc.status === 'done').map(({ image, ...rest }) => rest);
+  }
+
+  // Number of things boxes 2/3 can react to (spoken lines + read photos)
+  itemCount(s) {
+    return s.transcript.length + (s.screens || []).filter(sc => sc.status === 'done').length;
+  }
+
+  // A photo/screen arrives from any device in the session: show it right
+  // away on every device, then the result once it has been read.
+  beginScreen(s, { image, by }) {
+    s.lastActivity = Date.now();
+    const item = { id: crypto.randomUUID(), t: Date.now(), status: 'reading', image: image || null, by: by || null, result: null };
+    s.screens.push(item);
+    if (s.screens.length > MAX_SCREENS) s.screens.shift();
+    s.screens.forEach((sc, i) => { if (i < s.screens.length - SCREEN_IMAGES_KEPT) sc.image = null; });
+    this.emit(s, 'copilot:screen', item);
+    return item;
+  }
+
+  finishScreen(s, item, result) {
+    item.status = 'done';
+    item.result = {
+      id: result.id || null,
+      content_type: result.content_type,
+      extracted_text: result.extracted_text,
+      detected_language: result.detected_language,
+      translation: result.translation,
+      summary: result.summary,
+      key_points: result.key_points,
+      wants: result.wants,
+      drafts: result.drafts,
+      uncertain: result.uncertain,
+      uncertainty_note: result.uncertainty_note,
+      sources: result.sources,
+    };
+    this.emit(s, 'copilot:screen', item);
+    if (s.status !== 'live') return;
+    // Boxes 2 and 3 now take the photo into account
+    s.lineVersion = (s.lineVersion || 0) + 1;
+    this.requestPanel2(s, { now: true });
+    this.runPanel3(s).catch(() => {});
+  }
+
+  failScreen(s, item, message) {
+    item.status = 'error';
+    item.error = message;
+    this.emit(s, 'copilot:screen', item);
   }
 
   // ---------------------------------------------------------------
@@ -202,6 +263,7 @@ class LiveSessions {
       transcript: [],
       panel2: null,
       panel3: null,
+      screens: [],
       suggestionsLog: [],
       status: 'live',
       lastAnalysisAt: 0,
@@ -353,15 +415,22 @@ class LiveSessions {
   }
 
   transcriptText(s, maxChars = 8000) {
-    const lines = s.transcript.map(l => {
+    const photos = (s.screens || []).filter(sc => sc.status === 'done' && sc.result).map((sc) => {
+      const r = sc.result;
+      const ts = new Date(sc.t).toISOString().slice(11, 19);
+      const text = (r.extracted_text || '').replace(/\s+/g, ' ').slice(0, 900);
+      return { t: sc.t, text: `[${ts}] PHOTO (${r.content_type}) I took of a screen/slide: ${r.summary}${r.wants?.length ? ` | It asks: ${r.wants.join('; ')}` : ''}${text ? ` | Text on it: ${text}` : ''}` };
+    });
+    const spoken = s.transcript.map(l => {
       const ts = new Date(l.t).toISOString().slice(11, 19);
       const who = l.source === 'room'
         ? (l.corrected && l.speaker !== 'unknown'
           ? (l.speaker === 'me' ? 'ME' : 'THEM')
           : `VOICE (${l.speaker === 'me' ? 'probably ME' : l.speaker === 'them' ? 'probably THEM' : 'speaker unknown'})`)
         : l.source === 'me' ? 'ME' : 'THEM';
-      return `[${ts}] ${who}: ${l.text}${l.translation ? `  (translation: ${l.translation})` : ''}`;
+      return { t: l.t, text: `[${ts}] ${who}: ${l.text}${l.translation ? `  (translation: ${l.translation})` : ''}` };
     });
+    const lines = [...spoken, ...photos].sort((a, b) => a.t - b.t).map(x => x.text);
     let out = '';
     for (let i = lines.length - 1; i >= 0; i--) {
       if (out.length + lines[i].length > maxChars) break;
@@ -398,9 +467,12 @@ class LiveSessions {
       replyLang: languageName(replyCode, mine),
       p3Tr: trOf(L.p3_tr, replyCode),
       background: backgroundBlock(s.bg, this.transcriptText(s, 1500)),
-      roomNote: s.settings.mode === 'room'
+      roomNote: (s.settings.mode === 'room'
         ? '\nThis is an in-person conversation recorded by one microphone: lines are labelled VOICE with a guessed speaker, and the guess can be wrong. Use the content to tell who is asking.'
-        : '',
+        : '')
+        + ((s.screens || []).some(sc => sc.status === 'done')
+          ? '\nLines marked PHOTO are photos I took of a screen, slide or document during the session (e.g. the stage screen at a seminar). Use their content too: what it says and what it asks the audience to do.'
+          : ''),
     };
   }
 
@@ -411,7 +483,7 @@ class LiveSessions {
   // Debounced: at most one call in flight, at least PANEL2_MIN_GAP_MS apart.
   requestPanel2(s, { now = false, force = false } = {}) {
     if (s.status !== 'live' && !force) return;
-    if (!s.transcript.length) return;
+    if (!this.itemCount(s)) return;
     if (s.p2Busy) { s.p2Rerun = true; return; }
     clearTimeout(s.p2Timer);
     const wait = now ? 0 : Math.max(PANEL2_DEBOUNCE_MS, PANEL2_MIN_GAP_MS - (Date.now() - (s.p2StartedAt || 0)));
@@ -419,11 +491,11 @@ class LiveSessions {
   }
 
   async runPanel2(s, { force = false } = {}) {
-    if (s.p2Busy || !s.transcript.length) return;
-    if (!force && s.transcript.length === s.p2Count && s.p2Version === s.lineVersion) return;
+    if (s.p2Busy || !this.itemCount(s)) return;
+    if (!force && this.itemCount(s) === s.p2Count && s.p2Version === s.lineVersion) return;
     s.p2Busy = true;
     s.p2StartedAt = Date.now();
-    s.p2Count = s.transcript.length;
+    s.p2Count = this.itemCount(s);
     s.p2Version = s.lineVersion;
     this.setBusy(s);
     const { mine, p2Tr, background, roomNote } = this.context(s);
@@ -462,12 +534,12 @@ ${HONESTY_RULES}`,
 
   async runPanel3(s, { force = false } = {}) {
     if (s.status !== 'live' && !force) return;
-    if (!s.transcript.length) return;
-    if (!force && s.transcript.length === s.p3Count) return;
+    if (!this.itemCount(s)) return;
+    if (!force && this.itemCount(s) === s.p3Count) return;
     if (s.p3Busy) { s.p3Rerun = true; return; }
     s.p3Busy = true;
     s.lastAnalysisAt = Date.now();
-    s.p3Count = s.transcript.length;
+    s.p3Count = this.itemCount(s);
     this.setBusy(s);
     const { replyLang, p3Tr, background, roomNote } = this.context(s);
     try {
@@ -518,7 +590,7 @@ ${HONESTY_RULES}`,
   async persist(s, extra = {}) {
     await store.update('copilot_sessions', s.userId, s.id, {
       transcript: s.transcript,
-      summaries: { ...(s.summaries || {}), panel2: s.panel2 },
+      summaries: { ...(s.summaries || {}), panel2: s.panel2, screens: this.screensForStore(s) },
       suggestions: s.suggestionsLog.slice(-50),
       ...extra,
     });
@@ -534,7 +606,7 @@ ${HONESTY_RULES}`,
     this.emit(s, 'copilot:status', { status: 'stopping' });
 
     s.summaries = { panel2: s.panel2 };
-    if (s.transcript.length) {
+    if (this.itemCount(s)) {
       try {
         const out = await ai.respond({
           system: `Summarise this meeting for ME (the user) in ${languageName(this.langs(s).p2_main)}. "summary": 3–5 sentences. "key_points": what was discussed/agreed. "next_steps": follow-ups for me. ${HONESTY_RULES}`,

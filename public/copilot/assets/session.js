@@ -18,6 +18,7 @@
   const state = {
     session: null,
     lines: [],
+    screens: [], // photos/screens shared into the session (any device)
     panel2: null,
     panel3: null,
     done: new Set(),
@@ -379,9 +380,10 @@
   function renderTranscript() {
     const body = $('#p1-body');
     const stick = nearBottom(body);
-    body.innerHTML = R.transcriptHtml(state.lines);
+    body.innerHTML = R.transcriptHtml(state.lines, { screens: state.screens });
     if (stick) body.scrollTop = body.scrollHeight;
-    $('#p1-count').textContent = `${state.lines.length} line${state.lines.length === 1 ? '' : 's'}`;
+    const n = state.screens.length;
+    $('#p1-count').textContent = `${state.lines.length} line${state.lines.length === 1 ? '' : 's'}${n ? ` · ${n} photo${n === 1 ? '' : 's'}` : ''}`;
     state.targets.forEach(t => t.render());
   }
 
@@ -430,6 +432,35 @@
     renderTranscript();
   }
 
+  // Photo/screen from any device in the session (keeps our image if the
+  // server sent none, e.g. an older photo after a reconnect)
+  function upsertScreen(sc, { announce = false } = {}) {
+    const idx = state.screens.findIndex(x => x.id === sc.id);
+    const isNew = idx === -1;
+    if (isNew) state.screens.push(sc);
+    else state.screens[idx] = { ...sc, image: sc.image || state.screens[idx].image };
+    state.screens.sort((a, b) => a.t - b.t);
+    renderTranscript();
+    const cur = state.screens.find(x => x.id === sc.id);
+    if (cur.status === 'done' && cur.result) {
+      lastScreen = { html: ScreenReader.resultHtml(cur.result, { imageUrl: cur.image }) };
+      state.targets.forEach(t => t.render());
+    }
+    if (announce && isNew && sc.by !== DEVICE_ID) notice('📷 New photo added to this session — see box 1. Boxes 2 and 3 will use it.', 'info');
+  }
+
+  // Tap a photo (or "Open full result") in box 1
+  document.addEventListener('click', (e) => {
+    const el = e.target.closest('[data-open-screen]');
+    if (!el) return;
+    const sc = state.screens.find(x => x.id === el.dataset.openScreen);
+    if (!sc) return;
+    const html = sc.status === 'done' && sc.result
+      ? ScreenReader.resultHtml(sc.result, { imageUrl: sc.image })
+      : `${sc.image ? `<img class="screen-shot" src="${esc(sc.image)}" alt="" style="max-height:70vh" />` : ''}<div class="empty"><span class="spinner"></span> Reading the photo…</div>`;
+    Copilot.modal(`<h2>Photo · ${Copilot.fmtTime(sc.t)}</h2>${html}<div class="row" style="margin-top:12px"><button class="btn-ghost" data-close>Close</button></div>`);
+  });
+
   function connectSocket() {
     if (state.socket) state.socket.disconnect();
     const socket = io('/copilot', { withCredentials: true, transports: ['websocket', 'polling'] });
@@ -442,6 +473,7 @@
       state.lines.sort((a, b) => a.t - b.t);
       if (snap.panel2) state.panel2 = snap.panel2;
       if (snap.panel3) state.panel3 = snap.panel3;
+      (snap.screens || []).forEach(sc => upsertScreen(sc));
       renderTranscript(); renderPanel2(); renderPanel3();
     });
     socket.on('connect', join);
@@ -452,6 +484,7 @@
       upsertLine(line);
       if (line.translated) Speaker.onLine(line);
     });
+    socket.on('copilot:screen', (sc) => upsertScreen(sc, { announce: true }));
     socket.on('copilot:panel2', (p) => { state.panel2 = p; renderPanel2(); Speaker.onPanel(2, p); });
     socket.on('copilot:panel3', (p) => { state.panel3 = p; renderPanel3(); Speaker.onPanel(3, p); });
     socket.on('copilot:langs', (langs) => {
@@ -590,6 +623,7 @@
     state.lines = s.transcript || [];
     state.panel2 = s.panel2;
     state.panel3 = s.panel3;
+    state.screens = s.screens || [];
     state.startedAt = new Date(s.started_at).getTime();
     showLive();
     renderTranscript(); renderPanel2(); renderPanel3();
@@ -601,9 +635,11 @@
       // Second device (phone/tablet): follow the panels and listen; no capture here
       $('#chip-me').classList.add('hidden');
       $('#chip-them').classList.add('hidden');
-      $('#screen-btn').classList.add('hidden');
+      // This device can still add photos (e.g. of the stage screen) to the session
+      $('#screen-btn').textContent = '📷 Add photo';
+      $('#screen-btn').title = 'Take a photo of a screen or slide — every device in this session sees it';
       $('#device-btn').classList.add('hidden');
-      notice('Following this session from another device. Choose a panel to read aloud and press ▶ once to enable sound.', 'info');
+      notice('Following this session from another device. Tap "📷 Add photo" to share a photo of a screen or slide — it shows on all devices. Choose a panel to read aloud and press ▶ once to enable sound.', 'info');
     } else {
       $('#resume-btn').style.display = '';
       notice('Page was reloaded — click "Resume audio capture" to continue listening.', 'info');
@@ -642,6 +678,8 @@
   // READ MY SCREEN (during a session)
   // =============================================================
   let lastScreen = null; // { html } — also shown in the pop-out
+  // Identifies photos taken on this page (no "new photo" notice for them)
+  const DEVICE_ID = Math.random().toString(36).slice(2, 10);
 
   async function readScreen(win = window) {
     if (!state.session) return;
@@ -680,6 +718,8 @@
     }
     if (!blob) return;
     blob = await ScreenReader.shrink(blob);
+    // Smaller copy that the other devices in the session display
+    const preview = await ScreenReader.preview(blob);
     const imageUrl = URL.createObjectURL(blob);
     lastScreen = { html: `<img class="screen-shot" src="${imageUrl}" alt="" /><div class="empty"><span class="spinner"></span> Reading the screen…</div>` };
     const m = win === window ? Copilot.modal(`<h2>Read my screen</h2><div id="scr-body">${lastScreen.html}</div><div class="row" style="margin-top:12px"><button class="btn-ghost" data-close>Close</button></div>`) : null;
@@ -690,6 +730,9 @@
         contact_id: state.session.settings?.contact_id || state.session.contact_id,
         my_language: state.session.settings?.my_language,
         document_ids: state.session.settings?.document_ids,
+        session_id: state.session.id,
+        device: DEVICE_ID,
+        preview,
       });
       lastScreen = { html: ScreenReader.resultHtml(r, { imageUrl }) };
     } catch (err) {
@@ -957,7 +1000,7 @@
       render() {
         doc.querySelectorAll('[data-tab]').forEach(b => b.classList.toggle('active', Number(b.dataset.tab) === tab));
         const stick = nearBottom(body);
-        if (tab === 1) body.innerHTML = R.transcriptHtml(state.lines, { limit: 60 });
+        if (tab === 1) body.innerHTML = R.transcriptHtml(state.lines, { limit: 60, screens: state.screens });
         if (tab === 2) body.innerHTML = R.panel2Html(state.panel2, state.done);
         if (tab === 3) body.innerHTML = R.panel3Html(state.panel3);
         if (tab === 4) {

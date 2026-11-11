@@ -237,8 +237,9 @@ router.post('/reply', handle(async (req) => generateReply(uid(req), req.body || 
 
 // Read my screen (image upload: screen frame, screenshot or phone photo)
 router.post('/read-screen', (req, res, next) => {
-  imageUpload.single('image')(req, res, (err) => {
+  imageUpload.fields([{ name: 'image', maxCount: 1 }, { name: 'preview', maxCount: 1 }])(req, res, (err) => {
     if (err) return res.status(400).json({ error: err.code === 'LIMIT_FILE_SIZE' ? 'Image is larger than 10 MB' : err.message });
+    req.file = req.files?.image?.[0];
     next();
   });
 }, handle(async (req) => {
@@ -246,16 +247,36 @@ router.post('/read-screen', (req, res, next) => {
   if (!/^image\/(png|jpe?g|webp|gif)$/i.test(req.file.mimetype)) throw httpError(400, 'Use a PNG, JPG, WEBP or GIF image');
   let docIds = [];
   try { docIds = JSON.parse(req.body.document_ids || '[]'); } catch (err) { docIds = []; }
-  return readScreen(uid(req), {
-    image: req.file.buffer,
-    mimeType: req.file.mimetype,
-    context_id: req.body.context_id || null,
-    contact_id: req.body.contact_id || null,
-    note: req.body.note || '',
-    my_language: req.body.my_language || 'en',
-    reply_language: req.body.reply_language || 'auto',
-    document_ids: Array.isArray(docIds) ? docIds : [],
-  });
+
+  // Taken during a live session (on any device following it): every device
+  // in the session sees the photo and its result, and boxes 2/3 use it.
+  const s = req.body.session_id ? live.get(req.body.session_id, uid(req)) : null;
+  let item = null;
+  if (s) {
+    const prev = req.files?.preview?.[0];
+    const shown = prev && /^image\/(jpe?g|png|webp)$/i.test(prev.mimetype) && prev.size <= 1024 * 1024 ? prev : req.file;
+    item = live.beginScreen(s, {
+      image: shown.size <= 3 * 1024 * 1024 ? `data:${shown.mimetype};base64,${shown.buffer.toString('base64')}` : null,
+      by: req.body.device || null,
+    });
+  }
+  try {
+    const result = await readScreen(uid(req), {
+      image: req.file.buffer,
+      mimeType: req.file.mimetype,
+      context_id: req.body.context_id || null,
+      contact_id: req.body.contact_id || null,
+      note: req.body.note || '',
+      my_language: req.body.my_language || 'en',
+      reply_language: req.body.reply_language || 'auto',
+      document_ids: Array.isArray(docIds) ? docIds : [],
+    });
+    if (item) live.finishScreen(s, item, result);
+    return item ? { ...result, screen_id: item.id } : result;
+  } catch (err) {
+    if (item) live.failScreen(s, item, err.message);
+    throw err;
+  }
 }));
 
 // ---------------------------------------------------------------

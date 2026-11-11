@@ -69,9 +69,27 @@ const ScreenReader = (() => {
     }
   }
 
+  // Small JPEG (max 1280 px) to show the photo on the other devices of a live session
+  async function preview(file) {
+    try {
+      const bmp = await createImageBitmap(file);
+      const scale = Math.min(1, 1280 / Math.max(bmp.width, bmp.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(bmp.width * scale);
+      c.height = Math.round(bmp.height * scale);
+      c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+      return await new Promise(r => c.toBlob(r, 'image/jpeg', 0.75));
+    } catch (err) {
+      return null;
+    }
+  }
+
   async function analyze(blob, opts = {}) {
     const form = new FormData();
     form.append('image', blob, blob.name || 'screen.jpg');
+    if (opts.session_id) form.append('session_id', opts.session_id);
+    if (opts.device) form.append('device', opts.device);
+    if (opts.preview) form.append('preview', opts.preview, 'preview.jpg');
     form.append('my_language', opts.my_language || pref('myLanguage') || 'en');
     form.append('reply_language', opts.reply_language || 'auto');
     if (opts.context_id) form.append('context_id', opts.context_id);
@@ -101,5 +119,5 @@ const ScreenReader = (() => {
       ${r.id ? `<p class="small muted" style="margin-top:10px">Saved to <a href="/copilot/history?id=${r.id}" target="_blank">history</a>.</p>` : ''}`;
   }
 
-  return { canCaptureScreen, frameFromTrack, captureOnce, pickImage, shrink, analyze, resultHtml };
+  return { canCaptureScreen, frameFromTrack, captureOnce, pickImage, shrink, preview, analyze, resultHtml };
 })();

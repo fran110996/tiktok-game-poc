@@ -392,3 +392,8 @@ table.simple th { color: var(--muted); font-weight: 600; font-size: 0.78rem; tex
 .lang-setup .box-name { font-size: 0.82rem; color: var(--text); font-weight: 600; }
 .lang-setup .col-head { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; }
 @media (max-width: 760px) { .lang-setup { grid-template-columns: 1fr 1fr; } .lang-setup .box-name { grid-column: 1 / -1; margin-top: 4px; } .lang-setup .col-spacer { display: none; } }
+
+/* Photos shared into a live session (box 1) */
+.who.photo { background: #33280f; color: #f5c451; }
+.screen-item .qlist { margin: 4px 0 0; }
+.screen-thumb { max-width: 100%; max-height: 180px; border-radius: 6px; border: 1px solid var(--border); display: block; margin: 4px 0 6px; cursor: zoom-in; }

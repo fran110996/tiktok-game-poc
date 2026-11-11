@@ -45,7 +45,7 @@
         <div class="card"><h2>What they asked for (last update)</h2>${R.panel2Html(p2)}</div>
         <div class="card"><h2>Last suggestions</h2>${R.panel3Html(lastSuggestion)}</div>
       </div>
-      <div class="card"><h2>Transcript (${(s.transcript || []).length} lines)</h2>${R.transcriptHtml((s.transcript || []).map(l => ({ ...l, translated: true })))}</div>
+      <div class="card"><h2>Transcript (${(s.transcript || []).length} lines${s.summaries?.screens?.length ? ` · ${s.summaries.screens.length} photos` : ''})</h2>${R.transcriptHtml((s.transcript || []).map(l => ({ ...l, translated: true })), { screens: s.summaries?.screens || [], screenOpen: false })}</div>
       ${(s.suggestions || []).length > 1 ? `<div class="card"><h2>All suggestions during the meeting</h2>${s.suggestions.map(p => `<div class="subcard" style="margin-bottom:10px"><div class="small muted">${fmtDateTime(p.at)}</div>${R.panel3Html(p)}</div>`).join('')}</div>` : ''}`;
   }
 

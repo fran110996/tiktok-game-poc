@@ -25,10 +25,30 @@ const CopilotRender = (() => {
       <div class="line-text">${esc(l.text)}</div>${tr}</div>`;
   }
 
-  function transcriptHtml(lines, { limit } = {}) {
-    if (!lines.length) return '<div class="empty">Waiting for speech… lines appear ~5–10 s after someone speaks.</div>';
-    const list = limit ? lines.slice(-limit) : lines;
-    return list.map(lineHtml).join('');
+  // Photo / screen shared into a live session (shown inside box 1)
+  function screenItemHtml(sc, { open = true } = {}) {
+    const r = sc.result;
+    const img = sc.image ? `<img class="screen-thumb" src="${esc(sc.image)}" alt="Photo" data-open-screen="${esc(sc.id)}" />` : '';
+    let body;
+    if (sc.status === 'reading') body = '<div class="small muted"><span class="spinner"></span> Reading the photo…</div>';
+    else if (sc.status === 'error') body = `<div class="notice error small">${esc(sc.error || 'Could not read this photo')}</div>`;
+    else {
+      body = `<div class="line-text">${esc(r.summary || '')}</div>
+        ${r.wants?.length ? `<ul class="qlist small">${r.wants.map(w => `<li>${esc(w)}</li>`).join('')}</ul>` : ''}
+        ${r.translation ? `<div class="line-tr">→ ${esc(r.translation.length > 400 ? `${r.translation.slice(0, 400)}…` : r.translation)}</div>` : ''}
+        ${open ? `<button class="btn-ghost btn-sm" style="margin-top:6px" data-open-screen="${esc(sc.id)}">Open full result</button>` : ''}`;
+    }
+    return `<div class="line screen-item" data-screen="${esc(sc.id)}">
+      <div class="line-meta"><span class="who photo">📷 PHOTO</span><span>${fmtTime(sc.t)}</span>${r?.content_type ? `<span>${esc(r.content_type.toUpperCase())}</span>` : ''}${r ? uncertainTag(r) : ''}</div>
+      ${img}${body}</div>`;
+  }
+
+  function transcriptHtml(lines, { limit, screens = [], screenOpen = true } = {}) {
+    if (!lines.length && !screens.length) return '<div class="empty">Waiting for speech… lines appear ~5–10 s after someone speaks.</div>';
+    const items = [...lines.map(l => ({ t: l.t, html: () => lineHtml(l) })), ...screens.map(sc => ({ t: sc.t, html: () => screenItemHtml(sc, { open: screenOpen }) }))]
+      .sort((a, b) => a.t - b.t);
+    const list = limit ? items.slice(-limit) : items;
+    return list.map(x => x.html()).join('');
   }
 
   // Second-language line under a main one (boxes 2 and 3)
@@ -104,5 +124,5 @@ const CopilotRender = (() => {
     return res.line;
   }
 
-  return { whoHtml, lineHtml, transcriptHtml, correctLine, panel2Html, panel3Html, panel2Speech, panel3Speech };
+  return { whoHtml, lineHtml, screenItemHtml, transcriptHtml, correctLine, panel2Html, panel3Html, panel2Speech, panel3Speech };
 })();
