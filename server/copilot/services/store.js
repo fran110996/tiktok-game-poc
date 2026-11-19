@@ -86,14 +86,14 @@ for (const sig of ['SIGINT', 'SIGTERM']) {
 }
 
 // ---------------------------------------------------------------
-// Mode detection (probe once, re-probe every 5 minutes when local)
+// Mode detection (probe once, re-probe every minute when local)
 // ---------------------------------------------------------------
 let mode = null; // 'supabase' | 'local'
 let lastProbe = 0;
 
 async function getMode() {
   const now = Date.now();
-  if (mode === 'supabase' || (mode === 'local' && now - lastProbe < 5 * 60 * 1000)) return mode;
+  if (mode === 'supabase' || (mode === 'local' && now - lastProbe < 60 * 1000)) return mode;
   lastProbe = now;
   if (!supabase) {
     if (mode !== 'local') console.log('[Copilot] Supabase not configured → using local JSON store');

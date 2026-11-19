@@ -97,4 +97,18 @@ async function test(key = getKey()) {
   }
 }
 
+// If the database did not answer when the server woke up (Render free plan),
+// the saved key was not found and the app would stay in demo mode until the
+// next restart. Retry every minute while no key is loaded.
+const RETRY_MS = 60 * 1000;
+let retrying = false;
+setInterval(() => {
+  if (saved || retrying || !loaded) return;
+  retrying = true;
+  load()
+    .then(() => { if (saved) console.log('[Copilot] Saved OpenAI API key loaded on retry → real AI answers'); })
+    .catch(() => {})
+    .finally(() => { retrying = false; });
+}, RETRY_MS).unref();
+
 module.exports = { load, getKey, isDemo, status, save, test, isLoaded: () => loaded };
