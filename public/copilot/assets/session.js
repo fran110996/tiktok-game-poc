@@ -377,11 +377,61 @@
     return el.scrollHeight - el.scrollTop - el.clientHeight < 80;
   }
 
+  // =============================================================
+  // AUTO-SCROLL: each box keeps showing its newest text (box 1 grows at
+  // the bottom; boxes 2 and 3 are rewritten on each update, newest at the
+  // top). Scrolling by hand pauses that box and shows a "Newest" button;
+  // the Auto-scroll switch (saved on this device) turns it off.
+  // =============================================================
+  const Follow = (() => {
+    const on = {};
+    const paused = {};
+    const body = n => $(`#p${n}-body`);
+    const atNewest = (n) => {
+      const el = body(n);
+      return n === 1 ? nearBottom(el) : el.scrollTop < 40;
+    };
+    function ui(n, unseen = false) {
+      const btn = document.querySelector(`[data-latest="${n}"]`);
+      if (btn) btn.classList.toggle('hidden', !(unseen || (on[n] && paused[n])) || atNewest(n));
+    }
+    function jump(n) {
+      const el = body(n);
+      el.scrollTop = n === 1 ? el.scrollHeight : 0;
+      paused[n] = false;
+      ui(n);
+    }
+    // Call after new content was put in box n
+    function after(n) {
+      if (on[n] && !paused[n]) jump(n);
+      else ui(n, true);
+    }
+    [1, 2, 3].forEach((n) => {
+      on[n] = pref(`autoScroll${n}`) !== false;
+      paused[n] = false;
+      const cb = document.querySelector(`[data-autoscroll="${n}"]`);
+      if (cb) {
+        cb.checked = on[n];
+        cb.addEventListener('change', () => {
+          on[n] = cb.checked;
+          pref(`autoScroll${n}`, on[n]);
+          if (on[n]) jump(n); else ui(n);
+        });
+      }
+      body(n).addEventListener('scroll', () => {
+        if (on[n]) paused[n] = !atNewest(n);
+        ui(n);
+      }, { passive: true });
+      const btn = document.querySelector(`[data-latest="${n}"]`);
+      if (btn) btn.addEventListener('click', () => jump(n));
+    });
+    return { after, jump, isOn: n => on[n] };
+  })();
+
   function renderTranscript() {
     const body = $('#p1-body');
-    const stick = nearBottom(body);
     body.innerHTML = R.transcriptHtml(state.lines, { screens: state.screens });
-    if (stick) body.scrollTop = body.scrollHeight;
+    Follow.after(1);
     const n = state.screens.length;
     $('#p1-count').textContent = `${state.lines.length} line${state.lines.length === 1 ? '' : 's'}${n ? ` · ${n} photo${n === 1 ? '' : 's'}` : ''}`;
     state.targets.forEach(t => t.render());
@@ -485,8 +535,8 @@
       if (line.translated) Speaker.onLine(line);
     });
     socket.on('copilot:screen', (sc) => upsertScreen(sc, { announce: true }));
-    socket.on('copilot:panel2', (p) => { state.panel2 = p; renderPanel2(); Speaker.onPanel(2, p); });
-    socket.on('copilot:panel3', (p) => { state.panel3 = p; renderPanel3(); Speaker.onPanel(3, p); });
+    socket.on('copilot:panel2', (p) => { state.panel2 = p; renderPanel2(); Follow.after(2); Speaker.onPanel(2, p); });
+    socket.on('copilot:panel3', (p) => { state.panel3 = p; renderPanel3(); Follow.after(3); Speaker.onPanel(3, p); });
     socket.on('copilot:langs', (langs) => {
       state.session.settings = { ...(state.session.settings || {}), languages: langs };
       setLiveLangs(langs);
@@ -748,7 +798,7 @@
   document.querySelectorAll('[data-mtab]').forEach(b => b.addEventListener('click', () => {
     document.querySelectorAll('[data-mtab]').forEach(x => x.classList.toggle('active', x === b));
     document.querySelectorAll('.panels .panel').forEach(p => p.classList.toggle('mobile-active', p.dataset.panel === b.dataset.mtab));
-    if (b.dataset.mtab === '1') $('#p1-body').scrollTop = $('#p1-body').scrollHeight;
+    if (Follow.isOn(Number(b.dataset.mtab))) Follow.jump(Number(b.dataset.mtab));
   }));
 
   // =============================================================
@@ -1009,7 +1059,7 @@
             ${lastScreen ? lastScreen.html : ''}`;
           doc.getElementById('pip-read').addEventListener('click', () => readScreen(win));
         }
-        if (tab === 1 && stick) body.scrollTop = body.scrollHeight;
+        if (tab === 1 && stick && Follow.isOn(1)) body.scrollTop = body.scrollHeight;
         doc.getElementById('pip-speak').value = String(Speaker.panel);
         doc.getElementById('pip-mute').textContent = Speaker.muted ? '🔈' : '🔇';
       },

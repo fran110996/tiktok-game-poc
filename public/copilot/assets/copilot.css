@@ -397,3 +397,10 @@ table.simple th { color: var(--muted); font-weight: 600; font-size: 0.78rem; tex
 .who.photo { background: #33280f; color: #f5c451; }
 .screen-item .qlist { margin: 4px 0 0; }
 .screen-thumb { max-width: 100%; max-height: 180px; border-radius: 6px; border: 1px solid var(--border); display: block; margin: 4px 0 6px; cursor: zoom-in; }
+
+/* Auto-scroll per box + "Newest" button when paused */
+.panel { position: relative; }
+.panel-foot .autoscroll { font-size: 0.75rem; color: var(--muted); gap: 5px; margin-left: auto; white-space: nowrap; }
+.panel-foot .autoscroll input { width: auto; margin: 0; }
+.latest-btn { position: absolute; left: 50%; transform: translateX(-50%); bottom: 46px; z-index: 2; padding: 5px 12px; border-radius: 999px; font-size: 0.78rem; font-weight: 700; background: var(--accent); color: #0d0d1a; border: none; box-shadow: 0 2px 10px rgba(0,0,0,0.45); cursor: pointer; }
+.latest-btn[data-latest="2"], .latest-btn[data-latest="3"] { bottom: auto; top: 96px; }

@@ -123,19 +123,22 @@
           <div class="panel-head"><span class="num">1</span><h2>TRANSCRIPT & TRANSLATION</h2></div>
           <div class="lang-pair">Spoken <select data-live-lang="t_spoken"></select> → <select data-live-lang="t_target"></select></div>
           <div class="panel-body" id="p1-body"><div class="empty">Waiting for speech… lines appear ~5–10 s after someone speaks.</div></div>
-          <div class="panel-foot"><span id="p1-count">0 lines</span><span id="p1-legend">Me = microphone · Them = shared audio</span></div>
+          <button class="latest-btn hidden" data-latest="1" title="Jump to the newest text">↓ Newest</button>
+          <div class="panel-foot"><span id="p1-count">0 lines</span><span id="p1-legend">Me = microphone · Them = shared audio</span><label class="check autoscroll" title="Keep showing the newest text. Scroll by hand to pause; turn off to always scroll yourself."><input type="checkbox" data-autoscroll="1" checked /> Auto-scroll</label></div>
         </div>
         <div class="panel" data-panel="2">
           <div class="panel-head"><span class="num">2</span><h2>WHAT THEY ARE ASKING FOR</h2></div>
           <div class="lang-pair">In <select data-live-lang="p2_main"></select> + <select data-live-lang="p2_tr"></select></div>
           <div class="panel-body" id="p2-body"><div class="empty">Updates a few seconds after each new sentence.</div></div>
-          <div class="panel-foot"><span id="p2-at"></span></div>
+          <button class="latest-btn hidden" data-latest="2" title="Jump to the newest text">↑ Newest</button>
+          <div class="panel-foot"><span id="p2-at"></span><label class="check autoscroll" title="Keep showing the newest text. Scroll by hand to pause; turn off to always scroll yourself."><input type="checkbox" data-autoscroll="2" checked /> Auto-scroll</label></div>
         </div>
         <div class="panel mobile-active" data-panel="3">
           <div class="panel-head"><span class="num">3</span><h2>SUGGESTED REPLIES & SOLUTIONS</h2></div>
           <div class="lang-pair">Reply in <select data-live-lang="p3_main"></select> + <select data-live-lang="p3_tr"></select></div>
           <div class="panel-body" id="p3-body"><div class="empty">Suggestions appear once the conversation starts.</div></div>
-          <div class="panel-foot"><span id="p3-at"></span></div>
+          <button class="latest-btn hidden" data-latest="3" title="Jump to the newest text">↑ Newest</button>
+          <div class="panel-foot"><span id="p3-at"></span><label class="check autoscroll" title="Keep showing the newest text. Scroll by hand to pause; turn off to always scroll yourself."><input type="checkbox" data-autoscroll="3" checked /> Auto-scroll</label></div>
         </div>
       </div>
 
